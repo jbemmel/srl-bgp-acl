@@ -1,0 +1,10 @@
+name: bgp-acl-lab
+
+topology:
+  kinds:
+    srl:
+      image: srl/bgp-acl:latest
+      license: ../license.key
+
+  nodes:
+    spine1: { kind: srl, config: spine1.cfg }

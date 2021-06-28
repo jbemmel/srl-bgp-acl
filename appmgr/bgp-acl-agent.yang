@@ -1,0 +1,34 @@
+module bgp_acl_agent {
+
+    yang-version "1";
+
+    // namespace
+    namespace "urn:srl_test/bgp-acl-agent";
+
+    prefix "bgp_acl_agent";
+
+    revision "2021-06-28" {
+        description "Initial revision";
+        reference "TBD";
+    }
+
+    grouping bgp-acl-agent-top {
+        description "Top level grouping for BGP ACL agent sample app";
+
+        container bgp-acl-agent {
+            presence "presence container";
+            description "Top level enclosing container for auto config agent sample app
+                         config and operational state data";
+
+
+            leaf acl-sequence-start {
+                description "Initial sequence number to use for generated ACL entries";
+                type uint16;
+                default 1000;
+            }
+        }
+    }
+
+    // data definition statements
+    uses bgp-acl-agent-top;
+}
