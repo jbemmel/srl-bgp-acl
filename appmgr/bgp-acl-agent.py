@@ -11,6 +11,7 @@ from ipaddress import ip_network, ip_address, IPv4Address
 import json
 import signal
 import traceback
+import re
 
 import sdk_service_pb2
 import sdk_service_pb2_grpc
@@ -114,8 +115,9 @@ def Gnmi_subscribe_bgp_changes(state):
                     # Also, 'enable' event is followed by 'disable' - broken
                     # 'path': '/network-instance[name=*]/protocols/bgp/neighbor[peer-address=*]/admin-state',
                     # This leads to too many events, hitting the max 60/minute gNMI limit
+                    # 10 events per CLI change to a bgp neighbor, many duplicates
                     # 'path': '/network-instance[name=*]/protocols/bgp/neighbor[peer-address=*]',
-                    'path': '/network-instance[name=*]/protocols/bgp/neighbor[peer-address=*]/peer-group',
+                    'path': '/network-instance[name=*]/protocols/bgp/neighbor[peer-address=*]',
                     'mode': 'on_change',
                     # 'heartbeat_interval': 10 * 1000000000 # ns between, i.e. 10s
                     # Mode 'sample' results in polling
@@ -127,7 +129,7 @@ def Gnmi_subscribe_bgp_changes(state):
             'mode': 'stream',
             'encoding': 'json'
         }
-    # _bgp = re.compile( '^network-instance\[name=(.*)\]/protocols/bgp/neighbor\[peer-address=(.*)\]/admin-state$' )
+    _bgp = re.compile( r'^network-instance\[name=([^]]*)\]/protocols/bgp/neighbor\[peer-address=([^]]*)\]$' )
 
     # with Namespace('/var/run/netns/srbase-mgmt', 'net'):
     with gNMIclient(target=('unix:///opt/srlinux/var/run/sr_gnmi_server',57400),
@@ -136,40 +138,40 @@ def Gnmi_subscribe_bgp_changes(state):
       telemetry_stream = c.subscribe(subscribe=subscribe)
       for m in telemetry_stream:
         try:
-          parsed = telemetryParser(m) # XXX not strictly needed to parse this
-          logging.info(f"GOT BGP change event :: {m} parsed={parsed}")
-
-          if m.HasField('update'):
-              root = m.update.update
-          elif m.HasField('sync_response'):
-              root = []
-          elif m.HasField('delete'): # Triggers error?
-              root = m.delete.update
-          else:
-              root = []
-
-          # XXX gets update.delete for deletes, but not when subscribing to /admin-state
-          for u in root:
-             if u.path and u.path.elem:
-                 for e in u.path.elem:
-                    logging.info(f"Processing path elem {e} name='{e.name}'")
-                    if e.name == "neighbor":
-                       for n,v in e.key.items():
-                           logging.info(f"n={n} v={v}")
-                           if n=="peer-address":
-                              _peer_ip = v
-                              logging.info(f"neighbor {_peer_ip}")
-                              # if u.val.string_val == "enable":
-                              if m.HasField('update'):
-                                 Add_ACL(c,state,_peer_ip)
-                              else:
-                                 Remove_ACL(c,_peer_ip)
-                       break
+          if m.HasField('update'): # both update and delete events
+              # Filter out only toplevel events
+              parsed = telemetryParser(m)
+              logging.info(f"gNMI change event :: {parsed}")
+              update = parsed['update']
+              if update['update']:
+                 path = update['update'][0]['path']  # Only look at top level
+                 neighbor = _bgp.match( path )
+                 if not neighbor:
+                    logging.info(f"Ignoring gNMI change event :: {path}")
+                    continue
+                 peer_ip = neighbor.groups()[1]
+                 Add_ACL(c,state,peer_ip)
+              else: # pygnmi does not provide 'path' for delete events
+                 handleDelete(c,m)
 
         except Exception as e:
           traceback_str = ''.join(traceback.format_tb(e.__traceback__))
-          logging.error(f'Exception caught in gNMI :: {e} stack:{traceback_str}')
+          logging.error(f'Exception caught in gNMI :: {e} m={m} stack:{traceback_str}')
     logging.info("Leaving BGP event loop")
+
+def handleDelete(gnmi,m):
+    for e in m.update.delete:
+       for u in e:
+          if u.path and u.path.elem:
+              for e in u.path.elem:
+                 logging.info(f"Processing path elem {e} name='{e.name}'")
+                 if e.name == "neighbor":
+                    for n,v in e.key.items():
+                        logging.info(f"n={n} v={v}")
+                        if n=="peer-address":
+                           peer_ip = v
+                           Remove_ACL(gnmi,peer_ip)
+                           return
 
 def checkIP(ip):
     try:
@@ -323,7 +325,7 @@ if __name__ == '__main__':
     signal.signal(signal.SIGTERM, Exit_Gracefully)
     if not os.path.exists(stdout_dir):
         os.makedirs(stdout_dir, exist_ok=True)
-    log_filename = '{}/bgp-acl-agent.log'.format(stdout_dir)
+    log_filename = f'{stdout_dir}/{agent_name}.log'
     logging.basicConfig(filename=log_filename, filemode='a',\
                         format='%(asctime)s,%(msecs)d %(name)s %(levelname)s %(message)s',\
                         datefmt='%H:%M:%S', level=logging.INFO)
