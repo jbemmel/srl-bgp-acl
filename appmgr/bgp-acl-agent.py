@@ -17,7 +17,6 @@ import sdk_service_pb2
 import sdk_service_pb2_grpc
 import config_service_pb2
 
-# from nsenter import Namespace
 from pygnmi.client import gNMIclient, telemetryParser
 
 from logging.handlers import RotatingFileHandler
@@ -26,6 +25,8 @@ from logging.handlers import RotatingFileHandler
 ## Agent will start with this name
 ############################################################
 agent_name='bgp_acl_agent'
+
+acl_sequence_start=1000 # Default ACL sequence number base, can be configured
 
 ############################################################
 ## Open a GRPC channel to connect to sdk_mgr on the dut
@@ -68,7 +69,7 @@ def Subscribe_Notifications(stream_id):
 ## Proc to process the config Notifications received by auto_config_agent
 ## At present processing config from js_path = .fib-agent
 ##################################################################
-def Handle_Notification(obj, state):
+def Handle_Notification(obj):
     if obj.HasField('config') and obj.config.key.js_path != ".commit.end":
         logging.info(f"GOT CONFIG :: {obj.config.key.js_path}")
         if "bgp_acl_agent" in obj.config.key.js_path:
@@ -84,8 +85,8 @@ def Handle_Notification(obj, state):
                 json_acceptable_string = obj.config.data.json.replace("'", "\"")
                 data = json.loads(json_acceptable_string)
                 if 'acl_sequence_start' in data:
-                    state.acl_seq_base = data['acl_sequence_start']['value']
-                    logging.info(f"Got init sequence :: {state.acl_seq_base}")
+                    acl_sequence_start = data['acl_sequence_start']['value']
+                    logging.info(f"Got init sequence :: {acl_sequence_start}")
 
                 return 'acl_sequence_start' in data
 
@@ -105,7 +106,7 @@ def get_app_id(app_name):
     logging.info(f'app_id_response {app_id_response.status} {app_id_response.id} ')
     return app_id_response.id
 
-def Gnmi_subscribe_bgp_changes(state):
+def Gnmi_subscribe_bgp_changes():
     subscribe = {
             'subscription': [
                 {
@@ -150,7 +151,7 @@ def Gnmi_subscribe_bgp_changes(state):
                     logging.info(f"Ignoring gNMI change event :: {path}")
                     continue
                  peer_ip = neighbor.groups()[1]
-                 Add_ACL(c,state,peer_ip)
+                 Add_ACL(c,peer_ip)
               else: # pygnmi does not provide 'path' for delete events
                  handleDelete(c,m)
 
@@ -168,7 +169,7 @@ def handleDelete(gnmi,m):
              # logging.info(f"n={n} v={v}")
              if n=="peer-address":
                 peer_ip = v
-                Remove_ACL(gnmi,state,peer_ip)
+                Remove_ACL(gnmi,peer_ip)
                 return
 
 def checkIP(ip):
@@ -177,8 +178,8 @@ def checkIP(ip):
     except ValueError:
         return None
 
-def Add_ACL(gnmi,state,peer_ip):
-    seq, next_seq = Find_ACL_entry(gnmi,state,peer_ip) # Also returns next available entry
+def Add_ACL(gnmi,peer_ip):
+    seq, next_seq = Find_ACL_entry(gnmi,peer_ip) # Also returns next available entry
     if seq is None:
         v = checkIP(peer_ip)
         acl_entry = {
@@ -193,8 +194,8 @@ def Add_ACL(gnmi,state,peer_ip):
         logging.info(f"Update: {path}={acl_entry}")
         gnmi.set( encoding='json_ietf', update=[(path,acl_entry)] )
 
-def Remove_ACL(gnmi,state,peer_ip):
-   seq, next_seq = Find_ACL_entry(gnmi,state,peer_ip)
+def Remove_ACL(gnmi,peer_ip):
+   seq, next_seq = Find_ACL_entry(gnmi,peer_ip)
    if seq is not None:
        logging.info(f"Deleting ACL entry :: {seq}")
        v = checkIP(peer_ip)
@@ -207,15 +208,15 @@ def Remove_ACL(gnmi,state,peer_ip):
 # lookup based on IP address each time
 # Since 'prefix' is not a key, we have to loop through all entries
 #
-def Find_ACL_entry(gnmi,state,peer_ip):
+def Find_ACL_entry(gnmi,peer_ip):
 
    # path = '/acl/cpm-filter/ipv4-filter/entry[sequence-id=*]/match/source-ip/prefix'
    v = checkIP(peer_ip)
    path = f'/acl/cpm-filter/ipv{v}-filter/entry/match/source-ip/prefix'
    acl_entries = gnmi.get( encoding='json_ietf', path=[path] )
-   logging.info(f"GOT Notification :: {acl_entries}")
+   logging.info(f"GOT GET response :: {acl_entries}")
    searched = peer_ip + '/' + ('32' if v==4 else '128')
-   next_seq = state.acl_seq_base
+   next_seq = acl_sequence_start
    for e in acl_entries['notification']:
      try:
       if 'update' in e:
@@ -232,13 +233,6 @@ def Find_ACL_entry(gnmi,state,peer_ip):
      except Exception as e:
         logging.error(f'Exception caught in Find_ACL_entry :: {e}')
    return (None,next_seq)
-
-class State(object):
-    def __init__(self):
-        self.acl_seq_base = 1000      # Base sequence number, configurable
-
-    def __str__(self):
-        return str(self.__class__) + ": " + str(self.__dict__)
 
 ##################################################################################################
 ## This is the main proc where all processing for auto_config_agent starts.
@@ -264,14 +258,12 @@ def Run():
     stream_id = create_subscription_response.stream_id
     logging.info(f"Create subscription response received. stream_id : {stream_id}")
 
-    state = State()
-
     Subscribe_Notifications(stream_id)
 
     stream_request = sdk_service_pb2.NotificationStreamRequest(stream_id=stream_id)
     stream_response = sub_stub.NotificationStream(stream_request, metadata=metadata)
 
-    Gnmi_subscribe_bgp_changes(state)
+    Gnmi_subscribe_bgp_changes()
 
     try:
         for r in stream_response:
@@ -280,7 +272,7 @@ def Run():
                 if obj.HasField('config') and obj.config.key.js_path == ".commit.end":
                     logging.info('TO DO -commit.end config')
                 else:
-                    Handle_Notification(obj, state)
+                    Handle_Notification(obj)
 
     except grpc._channel._Rendezvous as err:
         logging.info(f'GOING TO EXIT NOW: {err}')
