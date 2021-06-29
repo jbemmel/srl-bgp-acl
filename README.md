@@ -57,3 +57,14 @@ To look at logs:
 ```
 docker exec clab-bgp-acl-lab-spine1 cat /var/log/srlinux/stdout/bgp_acl_agent.log
 ```
+
+## Implementation notes
+The code registers with the SR Linux NDK to allow for (simple) configuration of the base sequence number of dynamically created ACL entries.
+In parallel, it connects through gNMI to the local system using a unix socket (assuming default username/password, hardcoded).
+
+The gNMI subscription is targeted at /network-instance[name=*]/protocols/bgp/neighbor[peer-address=*], which receives more events than strictly needed.
+Events are filtered and only the base event is used to create an ACL entry. Similarly, 'delete' removes the ACL entry
+
+ACL entries are created dynamically, by looking up existing entries and creating a new entry using the next available sequence number (starting from configured base).
+It is assumed a 'drop all' entry exists at sequence number 65535
+
