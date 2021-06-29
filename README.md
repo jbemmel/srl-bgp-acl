@@ -27,6 +27,9 @@ neighbor 1.2.3.4
 peer-group test
 admin-state enable
 commit now
+
+# The above creates an ACL entry under /acl cpm-filter ipv4-filter
+
 enter candidate
 exit
 delete neighbor 1.2.3.4
@@ -41,6 +44,9 @@ neighbor 2001::1.2.3.4
 peer-group test
 admin-state enable
 commit now
+
+# The above creates an ACL entry under /acl cpm-filter ipv6-filter
+
 enter candidate
 exit
 delete neighbor 2001::1.2.3.4
