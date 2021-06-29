@@ -84,8 +84,8 @@ def Handle_Notification(obj, state):
                 json_acceptable_string = obj.config.data.json.replace("'", "\"")
                 data = json.loads(json_acceptable_string)
                 if 'acl_sequence_start' in data:
-                    state.acl_seq[4] = state.acl_seq[6] = data['acl_sequence_start']['value']
-                    logging.info(f"Got init sequence :: {state.acl_seq}")
+                    state.acl_seq_base = data['acl_sequence_start']['value']
+                    logging.info(f"Got init sequence :: {state.acl_seq_base}")
 
                 return 'acl_sequence_start' in data
 
@@ -165,10 +165,10 @@ def handleDelete(gnmi,m):
        for p in e.elem:
          if p.name == "neighbor":
            for n,v in p.key.items():
-             logging.info(f"n={n} v={v}")
+             # logging.info(f"n={n} v={v}")
              if n=="peer-address":
                 peer_ip = v
-                Remove_ACL(gnmi,peer_ip)
+                Remove_ACL(gnmi,state,peer_ip)
                 return
 
 def checkIP(ip):
@@ -178,12 +178,9 @@ def checkIP(ip):
         return None
 
 def Add_ACL(gnmi,state,peer_ip):
-    seq = Find_ACL_entry(gnmi,peer_ip)
+    seq, next_seq = Find_ACL_entry(gnmi,state,peer_ip) # Also returns next available entry
     if seq is None:
         v = checkIP(peer_ip)
-
-        seq = state.acl_seq[v]
-        state.acl_seq[v] += 1
         acl_entry = {
           "match": {
             ("protocol" if v==4 else "next-header"): "tcp",
@@ -192,12 +189,12 @@ def Add_ACL(gnmi,state,peer_ip):
           },
           "action": { "accept": { } }
         }
-        path = f'/acl/cpm-filter/ipv{v}-filter/entry[sequence-id={seq}]'
+        path = f'/acl/cpm-filter/ipv{v}-filter/entry[sequence-id={next_seq}]'
         logging.info(f"Update: {path}={acl_entry}")
         gnmi.set( encoding='json_ietf', update=[(path,acl_entry)] )
 
-def Remove_ACL(gnmi,peer_ip):
-   seq = Find_ACL_entry(gnmi,peer_ip)
+def Remove_ACL(gnmi,state,peer_ip):
+   seq, next_seq = Find_ACL_entry(gnmi,state,peer_ip)
    if seq is not None:
        logging.info(f"Deleting ACL entry :: {seq}")
        v = checkIP(peer_ip)
@@ -210,7 +207,7 @@ def Remove_ACL(gnmi,peer_ip):
 # lookup based on IP address each time
 # Since 'prefix' is not a key, we have to loop through all entries
 #
-def Find_ACL_entry(gnmi,peer_ip):
+def Find_ACL_entry(gnmi,state,peer_ip):
 
    # path = '/acl/cpm-filter/ipv4-filter/entry[sequence-id=*]/match/source-ip/prefix'
    v = checkIP(peer_ip)
@@ -218,6 +215,7 @@ def Find_ACL_entry(gnmi,peer_ip):
    acl_entries = gnmi.get( encoding='json_ietf', path=[path] )
    logging.info(f"GOT Notification :: {acl_entries}")
    searched = peer_ip + '/' + ('32' if v==4 else '128')
+   next_seq = state.acl_seq_base
    for e in acl_entries['notification']:
      try:
       if 'update' in e:
@@ -228,14 +226,16 @@ def Find_ACL_entry(gnmi,peer_ip):
                prefix = j['match']['source-ip']['prefix']
                if prefix==searched:
                    logging.info(f"Found matching entry :: {j}")
-                   return j['sequence-id']
+                   return (j['sequence-id'],None)
+               elif j['sequence-id']==next_seq:
+                   ++next_seq
      except Exception as e:
         logging.error(f'Exception caught in Find_ACL_entry :: {e}')
-   return None
+   return (None,next_seq)
 
 class State(object):
     def __init__(self):
-        self.acl_seq = { 4: 1000, 6: 1000 } # Starting index, todo configurable
+        self.acl_seq_base = 1000      # Base sequence number, configurable
 
     def __str__(self):
         return str(self.__class__) + ": " + str(self.__dict__)
