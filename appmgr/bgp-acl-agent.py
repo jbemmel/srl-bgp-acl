@@ -160,18 +160,16 @@ def Gnmi_subscribe_bgp_changes(state):
     logging.info("Leaving BGP event loop")
 
 def handleDelete(gnmi,m):
+    logging.info(f"handleDelete :: {m}")
     for e in m.update.delete:
-       for u in e:
-          if u.path and u.path.elem:
-              for e in u.path.elem:
-                 logging.info(f"Processing path elem {e} name='{e.name}'")
-                 if e.name == "neighbor":
-                    for n,v in e.key.items():
-                        logging.info(f"n={n} v={v}")
-                        if n=="peer-address":
-                           peer_ip = v
-                           Remove_ACL(gnmi,peer_ip)
-                           return
+       for p in e.elem:
+         if p.name == "neighbor":
+           for n,v in p.key.items():
+             logging.info(f"n={n} v={v}")
+             if n=="peer-address":
+                peer_ip = v
+                Remove_ACL(gnmi,peer_ip)
+                return
 
 def checkIP(ip):
     try:
