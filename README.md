@@ -68,3 +68,6 @@ Events are filtered and only the base event is used to create an ACL entry. Simi
 ACL entries are created dynamically, by looking up existing entries and creating a new entry using the next available sequence number (starting from configured base).
 It is assumed a 'drop all' entry exists at sequence number 65535
 
+## Open issues
+* There is a rate limit on the gNMI interface; a large configuration with many existing BGP peers may exceed it during startup
+
