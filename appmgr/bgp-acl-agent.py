@@ -224,10 +224,11 @@ def Find_ACL_entry(gnmi,peer_ip):
         for u in e['update']:
             for j in u['val']['entry']:
                logging.info(f"GOT ACL entry :: {j}")
-               prefix = j['match']['source-ip']['prefix']
-               if prefix==searched:
+               match = j['match']
+               prefix = match['source-ip']['prefix']
+               if prefix==searched and match['destination-port']['value']==179:
                    logging.info(f"Found matching entry :: {j}")
-                   return (j['sequence-id'],None)
+                   return (j['sequence-id'],None) # Could check >= start
                elif j['sequence-id']==next_seq:
                    ++next_seq
      except Exception as e:
