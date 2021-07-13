@@ -69,5 +69,5 @@ ACL entries are created dynamically, by looking up existing entries and creating
 It is assumed a 'drop all' entry exists at sequence number 65535
 
 ## Open issues
-* There is a rate limit on the gNMI interface; a large configuration with many existing BGP peers may exceed it during startup
+* There is a (configurable) connection rate limit on the gNMI interface; a large configuration with many existing BGP peers may exceed it during startup with the current approach of opening a new connection for each request
 
