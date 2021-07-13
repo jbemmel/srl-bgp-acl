@@ -130,7 +130,7 @@ def Gnmi_subscribe_bgp_changes():
             'mode': 'stream',
             'encoding': 'json'
         }
-    _bgp = re.compile( r'^network-instance\[name=([^]]*)\]/protocols/bgp/neighbor\[peer-address=([^]]*)\]$' )
+    _bgp = re.compile( r'^network-instance\[name=([^]]*)\]/protocols/bgp/neighbor\[peer-address=([^]]*)\]/admin-state$' )
 
     # with Namespace('/var/run/netns/srbase-mgmt', 'net'):
     with gNMIclient(target=('unix:///opt/srlinux/var/run/sr_gnmi_server',57400),
@@ -151,6 +151,7 @@ def Gnmi_subscribe_bgp_changes():
                     logging.info(f"Ignoring gNMI change event :: {path}")
                     continue
                  peer_ip = neighbor.groups()[1]
+                 # No-op if already exists
                  Add_ACL(c,peer_ip)
               else: # pygnmi does not provide 'path' for delete events
                  handleDelete(c,m)
