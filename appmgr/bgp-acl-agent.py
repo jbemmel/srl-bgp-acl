@@ -12,6 +12,7 @@ import json
 import signal
 import traceback
 import re
+from concurrent.futures import ThreadPoolExecutor
 
 import sdk_service_pb2
 import sdk_service_pb2_grpc
@@ -46,6 +47,7 @@ def Subscribe(stream_id, option):
     op = sdk_service_pb2.NotificationRegisterRequest.AddSubscription
     if option == 'cfg':
         entry = config_service_pb2.ConfigSubscriptionRequest()
+        entry.key.js_path = '.' + agent_name # filter out .commit.end notifications
         request = sdk_service_pb2.NotificationRegisterRequest(op=op, stream_id=stream_id, config=entry)
 
     subscription_response = stub.NotificationRegister(request=request, metadata=metadata)
@@ -70,7 +72,7 @@ def Subscribe_Notifications(stream_id):
 ## At present processing config from js_path = .fib-agent
 ##################################################################
 def Handle_Notification(obj):
-    if obj.HasField('config') and obj.config.key.js_path != ".commit.end":
+    if obj.HasField('config'):
         logging.info(f"GOT CONFIG :: {obj.config.key.js_path}")
         if "bgp_acl_agent" in obj.config.key.js_path:
             logging.info(f"Got config for agent, now will handle it :: \n{obj.config}\
@@ -266,16 +268,15 @@ def Run():
     stream_request = sdk_service_pb2.NotificationStreamRequest(stream_id=stream_id)
     stream_response = sub_stub.NotificationStream(stream_request, metadata=metadata)
 
-    Gnmi_subscribe_bgp_changes()
+    # Gnmi_subscribe_bgp_changes()
+    executor = ThreadPoolExecutor(max_workers=1)
+    executor.submit(Gnmi_subscribe_bgp_changes)
 
     try:
         for r in stream_response:
-            logging.info(f"Count :: {count}  NOTIFICATION:: \n{r.notification}")
+            logging.info(f"NOTIFICATION:: \n{r.notification}")
             for obj in r.notification:
-                if obj.HasField('config') and obj.config.key.js_path == ".commit.end":
-                    logging.info('TO DO -commit.end config')
-                else:
-                    Handle_Notification(obj)
+                Handle_Notification(obj)
 
     except grpc._channel._Rendezvous as err:
         logging.info(f'GOING TO EXIT NOW: {err}')
