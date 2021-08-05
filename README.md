@@ -36,6 +36,29 @@ delete neighbor 1.2.3.4
 commit now
 ```
 
+Add 2 neighbors, delete both in the same commit:
+```
+enter candidate
+/network-instance default protocols bgp
+group test
+exit
+neighbor 1.2.3.4
+peer-group test
+admin-state enable
+exit
+neighbor 5.6.7.8
+peer-group test
+admin-state enable
+exit
+commit now
+
+enter candidate
+exit
+delete neighbor 1.2.3.4
+delete neighbor 5.6.7.8
+commit now
+```
+
 For IPv6:
 ```
 enter candidate 
