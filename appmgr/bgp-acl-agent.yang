@@ -1,4 +1,4 @@
-module bgp_acl_agent {
+module bgp-acl-agent {
 
     yang-version "1";
 

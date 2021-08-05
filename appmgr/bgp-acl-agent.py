@@ -97,17 +97,6 @@ def Handle_Notification(obj):
 
     return False
 
-
-##################################################################################################
-## This functions get the app_id from idb for a given app_name
-##################################################################################################
-def get_app_id(app_name):
-    logging.info(f'Metadata {metadata} ')
-    appId_req = sdk_service_pb2.AppIdRequest(name=app_name)
-    app_id_response=stub.GetAppId(request=appId_req, metadata=metadata)
-    logging.info(f'app_id_response {app_id_response.status} {app_id_response.id} ')
-    return app_id_response.id
-
 def Gnmi_subscribe_bgp_changes():
     subscribe = {
             'subscription': [
@@ -169,11 +158,11 @@ def handleDelete(gnmi,m):
        for p in e.elem:
          if p.name == "neighbor":
            for n,v in p.key.items():
-             # logging.info(f"n={n} v={v}")
+             logging.info(f"n={n} v={v}")
              if n=="peer-address":
                 peer_ip = v
                 Remove_ACL(gnmi,peer_ip)
-                return
+                return # XXX could be multiple peers deleted in 1 go?
 
 def checkIP(ip):
     try:
@@ -200,24 +189,26 @@ def Add_ACL(gnmi,peer_ip):
 def Remove_ACL(gnmi,peer_ip):
    seq, next_seq = Find_ACL_entry(gnmi,peer_ip)
    if seq is not None:
-       logging.info(f"Deleting ACL entry :: {seq}")
+       logging.info(f"Remove_ACL: Deleting ACL entry :: {seq}")
        v = checkIP(peer_ip)
        path = f'/acl/cpm-filter/ipv{v}-filter/entry[sequence-id={seq}]'
        gnmi.set( encoding='json_ietf', delete=[path] )
+   else:
+       logging.info(f"Remove_ACL: No entry found for peer_ip={peer_ip}")
 
 #
 # Because it is possible that ACL entries get saved to 'startup', the agent may
 # not have a full map of sequence number to peer_ip. Therefore, we perform a
 # lookup based on IP address each time
-# Since 'prefix' is not a key, we have to loop through all entries
+# Since 'prefix' is not a key, we have to loop through all entries with a prefix
 #
 def Find_ACL_entry(gnmi,peer_ip):
 
    # path = '/acl/cpm-filter/ipv4-filter/entry[sequence-id=*]/match/source-ip/prefix'
    v = checkIP(peer_ip)
-   path = f'/acl/cpm-filter/ipv{v}-filter/entry/match/source-ip/prefix'
+   path = f'/acl/cpm-filter/ipv{v}-filter/entry/match/' # source-ip/prefix
    acl_entries = gnmi.get( encoding='json_ietf', path=[path] )
-   logging.info(f"GOT GET response :: {acl_entries}")
+   logging.info(f"Find_ACL_entry: GOT GET response :: {acl_entries}")
    searched = peer_ip + '/' + ('32' if v==4 else '128')
    next_seq = acl_sequence_start
    for e in acl_entries['notification']:
@@ -226,17 +217,19 @@ def Find_ACL_entry(gnmi,peer_ip):
         logging.info(f"GOT Update :: {e['update']}")
         for u in e['update']:
             for j in u['val']['entry']:
-               logging.info(f"GOT ACL entry :: {j}")
+               logging.info(f"Check ACL entry :: {j}")
                match = j['match']
-               prefix = match['source-ip']['prefix']
-               if (prefix==searched and 'destination-port' in match
-                   and match['destination-port']['value']==179):
-                   logging.info(f"Found matching entry :: {j}")
-                   return (j['sequence-id'],None) # Could check >= start
-               elif j['sequence-id']==next_seq:
-                   ++next_seq
+               if 'source-ip' in match and 'prefix' in match['source-ip']:
+                  prefix = match['source-ip']['prefix']
+                  if (prefix==searched and 'destination-port' in match
+                      and match['destination-port']['value']==179):
+                      logging.info(f"Find_ACL_entry: Found matching entry :: {j}")
+                      return (j['sequence-id'],None) # Could check >= start
+                  elif j['sequence-id']==next_seq:
+                      ++next_seq
      except Exception as e:
         logging.error(f'Exception caught in Find_ACL_entry :: {e}')
+   logging.info(f"Find_ACL_entry: no match for searched={searched}")
    return (None,next_seq)
 
 ##################################################################################################
@@ -250,13 +243,6 @@ def Run():
 
     response = stub.AgentRegister(request=sdk_service_pb2.AgentRegistrationRequest(), metadata=metadata)
     logging.info(f"Registration response : {response.status}")
-
-    app_id = get_app_id(agent_name)
-    if not app_id:
-        logging.error(f'idb does not have the appId for {agent_name} : {app_id}')
-        sys.exit(-1)
-    else:
-        logging.info(f'Got appId {app_id} for {agent_name}')
 
     request=sdk_service_pb2.NotificationRegisterRequest(op=sdk_service_pb2.NotificationRegisterRequest.Create)
     create_subscription_response = stub.NotificationRegister(request=request, metadata=metadata)
@@ -320,11 +306,10 @@ if __name__ == '__main__':
     if not os.path.exists(stdout_dir):
         os.makedirs(stdout_dir, exist_ok=True)
     log_filename = f'{stdout_dir}/{agent_name}.log'
-    logging.basicConfig(filename=log_filename, filemode='a',\
-                        format='%(asctime)s,%(msecs)d %(name)s %(levelname)s %(message)s',\
-                        datefmt='%H:%M:%S', level=logging.INFO)
-    handler = RotatingFileHandler(log_filename, maxBytes=3000000,backupCount=5)
-    logging.getLogger().addHandler(handler)
+    logging.basicConfig(
+      handlers=[RotatingFileHandler(log_filename, maxBytes=3000000,backupCount=5)],
+      format='%(asctime)s,%(msecs)03d %(name)s %(levelname)s %(message)s',
+      datefmt='%H:%M:%S', level=logging.INFO)
     logging.info("START TIME :: {}".format(datetime.datetime.now()))
     if Run():
         logging.info('Agent unregistered')

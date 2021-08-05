@@ -6,10 +6,12 @@ IMG         := ${NAME}:${TAG}
 LATEST      := ${NAME}:latest
 # HTTP_PROXY  := "http://proxy.lbs.alcatel-lucent.com:8000"
 
-build:
-	sudo docker build --build-arg SRL_AUTO_CONFIG_RELEASE=${TAG} --build-arg http_proxy=${HTTP_PROXY} --build-arg https_proxy=${HTTP_PROXY} \
-	         -f Dockerfile -t ${IMG} .
-	sudo docker tag ${IMG} ${LATEST}
+ifndef SR_LINUX_RELEASE
+override SR_LINUX_RELEASE="latest"
+endif
 
-login:
-	docker log -u ${DOCKER_USER} -p ${DOCKER_PASS}
+build:
+	sudo docker build --build-arg SRL_AUTO_CONFIG_RELEASE=${TAG} \
+	 --build-arg http_proxy=${HTTP_PROXY} --build-arg https_proxy=${HTTP_PROXY} \
+	 --build-arg SR_LINUX_RELEASE="${SR_LINUX_RELEASE}" -f Dockerfile -t ${IMG} .
+	sudo docker tag ${IMG} ${LATEST}

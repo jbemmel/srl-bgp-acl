@@ -7,4 +7,4 @@ topology:
       license: ../license.key
 
   nodes:
-    spine1: { kind: srl, config: spine1.cfg }
+    spine1: { kind: srl, startup-config: spine1.cfg }
