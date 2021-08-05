@@ -2,10 +2,10 @@ module bgp-acl-agent {
 
     yang-version "1";
 
-    // namespace, needs to be under srl_nokia to show up?
-    // namespace "urn:srl_test/bgp-acl-agent";
+    // namespace, needs to be under srl_nokia to show up? nope
+    namespace "urn:srl_test/bgp-acl-agent";
     // namespace "urn:srl_nokia/bgp_acl_agent";
-    namespace "urn:srl_nokia/srl_nokia-acl";
+    // namespace "urn:srl_nokia/srl_nokia-acl";
 
     prefix "bgp_acl_agent";
 
@@ -16,7 +16,7 @@ module bgp-acl-agent {
       prefix srl_nokia-ext;
     }
 
-    organization "Nokia";
+    // organization "Nokia";
 
     revision "2021-06-28" {
         description "Initial revision";
@@ -46,8 +46,8 @@ module bgp-acl-agent {
     grouping custom-agent-config {
      container bgp-acl-agent {
       presence "State related to BGP ACL agent";
-      srl_nokia-ext:delivery-node-override true;
-      srl_nokia-ext:stream-mode sample=5;
+      // srl_nokia-ext:delivery-node-override true;
+      // srl_nokia-ext:stream-mode sample=5;
       must "(../../protocol = 'tcp' or ../../next-header = 'tcp') and ../../destination-port/value = 179" {
         error-message "The BGP ACL agent only manages TCP entries for port 179";
       }
