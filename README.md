@@ -53,7 +53,6 @@ exit
 commit now
 
 enter candidate
-exit
 delete neighbor 1.2.3.4
 delete neighbor 5.6.7.8
 commit now
