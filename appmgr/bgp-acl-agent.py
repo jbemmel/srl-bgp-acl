@@ -2,7 +2,7 @@
 # coding=utf-8
 
 import grpc
-import datetime
+from datetime import datetime
 import sys
 import logging
 import socket
@@ -177,10 +177,16 @@ def Add_ACL(gnmi,peer_ip):
         acl_entry = {
           "match": {
             ("protocol" if v==4 else "next-header"): "tcp",
-            "source-ip": { "prefix": peer_ip + '/' + ('32' if v==4 else '128') },
+            "source-ip": {
+              "prefix": peer_ip + '/' + ('32' if v==4 else '128'),
+              # Custom data added to Yang model, shows up in CLI but (currently) not via gNMI
+              "bgp-acl-agent" : {
+                "created-on" : datetime.now().strftime("%Y-%m-%d %H:%M:%S UTC"),
+              }
+            },
             "destination-port": { "operator": "eq", "value": 179 }
           },
-          "action": { "accept": { } }
+          "action": { "accept": { } },
         }
         path = f'/acl/cpm-filter/ipv{v}-filter/entry[sequence-id={next_seq}]'
         logging.info(f"Update: {path}={acl_entry}")
@@ -204,9 +210,10 @@ def Remove_ACL(gnmi,peer_ip):
 #
 def Find_ACL_entry(gnmi,peer_ip):
 
-   # path = '/acl/cpm-filter/ipv4-filter/entry[sequence-id=*]/match/source-ip/prefix'
+   # Can filter like this to reduce #entries
+   # path = '/acl/cpm-filter/ipv4-filter/entry[sequence-id=100*]
    v = checkIP(peer_ip)
-   path = f'/acl/cpm-filter/ipv{v}-filter/entry/match/' # source-ip/prefix
+   path = f'/acl/cpm-filter/ipv{v}-filter/entry/match/' # source-ip'
    acl_entries = gnmi.get( encoding='json_ietf', path=[path] )
    logging.info(f"Find_ACL_entry: GOT GET response :: {acl_entries}")
    searched = peer_ip + '/' + ('32' if v==4 else '128')
@@ -219,14 +226,21 @@ def Find_ACL_entry(gnmi,peer_ip):
             for j in u['val']['entry']:
                logging.info(f"Check ACL entry :: {j}")
                match = j['match']
-               if 'source-ip' in match and 'prefix' in match['source-ip']:
-                  prefix = match['source-ip']['prefix']
-                  if (prefix==searched and 'destination-port' in match
-                      and match['destination-port']['value']==179):
-                      logging.info(f"Find_ACL_entry: Found matching entry :: {j}")
-                      return (j['sequence-id'],None) # Could check >= start
-                  elif j['sequence-id']==next_seq:
-                      ++next_seq
+               if 'source-ip' in match and j['sequence-id'] >= acl_sequence_start:
+                  src_ip = match['source-ip']
+                  # custom extension currently not returned via gNMI
+                  # if 'bgp-acl-agent' in src_ip and ...
+                  if 'prefix' in src_ip:
+                     if (src_ip['prefix'] == searched):
+                         logging.info(f"Find_ACL_entry: Found matching entry :: {j}")
+
+                         # Perform extra sanity check
+                         if ('destination-port' in match
+                             and 'value' in match['destination-port']
+                             and match['destination-port']['value'] == 179):
+                            return (j['sequence-id'],None)
+                     elif j['sequence-id']==next_seq:
+                         ++next_seq
      except Exception as e:
         logging.error(f'Exception caught in Find_ACL_entry :: {e}')
    logging.info(f"Find_ACL_entry: no match for searched={searched}")
@@ -310,7 +324,7 @@ if __name__ == '__main__':
       handlers=[RotatingFileHandler(log_filename, maxBytes=3000000,backupCount=5)],
       format='%(asctime)s,%(msecs)03d %(name)s %(levelname)s %(message)s',
       datefmt='%H:%M:%S', level=logging.INFO)
-    logging.info("START TIME :: {}".format(datetime.datetime.now()))
+    logging.info("START TIME :: {}".format(datetime.now()))
     if Run():
         logging.info('Agent unregistered')
     else:
