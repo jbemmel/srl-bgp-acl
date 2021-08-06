@@ -2,10 +2,7 @@ module bgp-acl-agent {
 
     yang-version "1";
 
-    // namespace, needs to be under srl_nokia to show up? nope
-    namespace "urn:srl_test/bgp-acl-agent";
-    // namespace "urn:srl_nokia/bgp_acl_agent";
-    // namespace "urn:srl_nokia/srl_nokia-acl";
+    namespace "urn:srl_extension/bgp-acl-agent";
 
     prefix "bgp_acl_agent";
 
@@ -14,6 +11,9 @@ module bgp-acl-agent {
     }
     import srl_nokia-extensions {
       prefix srl_nokia-ext;
+    }
+    import srl_nokia-common {
+      prefix srl_nokia-comm;
     }
 
     // organization "Nokia";
@@ -28,14 +28,47 @@ module bgp-acl-agent {
 
         container bgp-acl-agent {
             presence "presence container";
-            description "Top level enclosing container for auto config agent sample app
-                         config and operational state data";
+            description "Top level enclosing container for BGP ACL agent app
+                         config and global operational state data";
 
             leaf acl-sequence-start {
                 description "Initial sequence number to use for generated ACL entries";
                 type uint16;
                 default 1000;
             }
+
+            leaf acl-count {
+                config false;
+                description "Total number of ACL entries created (ipv4/ipv6)";
+                type uint32;
+                default 0;
+            }
+
+            leaf last-change {
+                config false;
+                description "Date and time of last update (add/delete)";
+                type srl_nokia-comm:date-and-time-delta;
+            }
+
+            //list entry {
+            //    config false;
+
+            //    key ip; // by making this a list with a key field, we can search for it
+
+            //    leaf ip {
+            //       description "Client source IP from which BGP sessions are initiated";
+            //       type string; // IPv4/v6 address
+            //    }
+
+            //    leaf sequence-id {
+            //       description "Sequence number of corresponding ACL entry";
+            //       type uint16 {
+            //         range "1..65535";
+
+                     // Could define this as a reference to the ACL entry
+            //       }
+            //    }
+            // }
         }
     }
 
@@ -44,26 +77,23 @@ module bgp-acl-agent {
 
     // Add a flag to ACL entries such that we can easily track the ones we added
     grouping custom-agent-config {
-     container bgp-acl-agent {
-      presence "State related to BGP ACL agent";
-      // srl_nokia-ext:delivery-node-override true;
-      // srl_nokia-ext:stream-mode sample=5;
-      must "(../../protocol = 'tcp' or ../../next-header = 'tcp') and ../../destination-port/value = 179" {
-        error-message "The BGP ACL agent only manages TCP entries for port 179";
-      }
 
-      leaf created-on {
+     // Add a flag that is visible in the CLI, such that users can see
+     leaf created-by-bgp-acl-agent {
         description "Timestamp added by BGP ACL agent to mark this entry";
-        type string; // or type srl_nokia-comm:date-and-time-delta;
-      }
+        type srl_nokia-comm:date-and-time-delta;
+
+        must "(../match/protocol = 'tcp' or ../match/next-header = 'tcp') and ../match/destination-port/value = 179" {
+          error-message "The BGP ACL agent only manages TCP entries for port 179";
+        }
      }
     }
 
-    // Put it under 'match/source-ip' such that searching is optimized
-    augment "/_acl:acl/_acl:cpm-filter/_acl:ipv4-filter/_acl:entry/_acl:match/_acl:source-ip" {
+    // Add custom state to ipv4 and ipv6 ACL entries
+    augment "/_acl:acl/_acl:cpm-filter/_acl:ipv4-filter/_acl:entry" {
       uses custom-agent-config;
     }
-    augment "/_acl:acl/_acl:cpm-filter/_acl:ipv6-filter/_acl:entry/_acl:match/_acl:source-ip" {
+    augment "/_acl:acl/_acl:cpm-filter/_acl:ipv6-filter/_acl:entry" {
       uses custom-agent-config;
     }
 

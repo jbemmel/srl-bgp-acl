@@ -18,8 +18,11 @@ import sdk_service_pb2
 import sdk_service_pb2_grpc
 import config_service_pb2
 
-from pygnmi.client import gNMIclient, telemetryParser
+# To report state back
+import telemetry_service_pb2
+import telemetry_service_pb2_grpc
 
+from pygnmi.client import gNMIclient, telemetryParser
 from logging.handlers import RotatingFileHandler
 
 ############################################################
@@ -28,6 +31,7 @@ from logging.handlers import RotatingFileHandler
 agent_name='bgp_acl_agent'
 
 acl_sequence_start=1000 # Default ACL sequence number base, can be configured
+acl_count=0             # Number of ACL entries created/managed
 
 ############################################################
 ## Open a GRPC channel to connect to sdk_mgr on the dut
@@ -74,7 +78,7 @@ def Subscribe_Notifications(stream_id):
 def Handle_Notification(obj):
     if obj.HasField('config'):
         logging.info(f"GOT CONFIG :: {obj.config.key.js_path}")
-        if "bgp_acl_agent" in obj.config.key.js_path:
+        if obj.config.key.js_path == ".bgp_acl_agent":
             logging.info(f"Got config for agent, now will handle it :: \n{obj.config}\
                             Operation :: {obj.config.op}\nData :: {obj.config.data.json}")
             if obj.config.op == 2:
@@ -126,7 +130,7 @@ def Gnmi_subscribe_bgp_changes():
     # with Namespace('/var/run/netns/srbase-mgmt', 'net'):
     with gNMIclient(target=('unix:///opt/srlinux/var/run/sr_gnmi_server',57400),
                             username="admin",password="admin",
-                            insecure=True) as c:
+                            insecure=True, debug=False) as c:
       telemetry_stream = c.subscribe(subscribe=subscribe)
       for m in telemetry_stream:
         try:
@@ -170,20 +174,33 @@ def checkIP(ip):
     except ValueError:
         return None
 
+def Add_Telemetry(js_path, dict):
+    telemetry_stub = telemetry_service_pb2_grpc.SdkMgrTelemetryServiceStub(channel)
+    telemetry_update_request = telemetry_service_pb2.TelemetryUpdateRequest()
+    telemetry_info = telemetry_update_request.state.add()
+    telemetry_info.key.js_path = js_path
+    telemetry_info.data.json_content = json.dumps(dict)
+    logging.info(f"Telemetry_Update_Request :: {telemetry_update_request}")
+    telemetry_response = telemetry_stub.TelemetryAddOrUpdate(request=telemetry_update_request, metadata=metadata)
+    logging.info(f"TelemetryAddOrUpdate response:{telemetry_response}")
+    return telemetry_response
+
+def Update_ACL_Counter(delta):
+    global acl_count
+    acl_count += delta
+    _ts = datetime.now().strftime("%Y-%m-%dT%H:%M:%SZ")
+    Add_Telemetry( ".bgp_acl_agent", { "acl_count"   : acl_count,
+                                       "last_change" : _ts } )
+
 def Add_ACL(gnmi,peer_ip):
     seq, next_seq = Find_ACL_entry(gnmi,peer_ip) # Also returns next available entry
     if seq is None:
         v = checkIP(peer_ip)
         acl_entry = {
+          "created-by-bgp-acl-agent" : datetime.now().strftime("%Y-%m-%dT%H:%M:%SZ"),
           "match": {
             ("protocol" if v==4 else "next-header"): "tcp",
-            "source-ip": {
-              "prefix": peer_ip + '/' + ('32' if v==4 else '128'),
-              # Custom data added to Yang model, shows up in CLI but (currently) not via gNMI
-              "bgp-acl-agent" : {
-                "created-on" : datetime.now().strftime("%Y-%m-%d %H:%M:%S UTC"),
-              }
-            },
+            "source-ip": { "prefix": peer_ip + '/' + ('32' if v==4 else '128') },
             "destination-port": { "operator": "eq", "value": 179 }
           },
           "action": { "accept": { } },
@@ -192,6 +209,14 @@ def Add_ACL(gnmi,peer_ip):
         logging.info(f"Update: {path}={acl_entry}")
         gnmi.set( encoding='json_ietf', update=[(path,acl_entry)] )
 
+        # Need to set state separately, not via gNMI. Uses underscores in path
+        # Tried extending ACL entries, but system won't accept these updates
+        # js_path = (f'.acl.cpm_filter.ipv{v}_filter.entry' +
+        #            '{.sequence_id==' + str(next_seq) + '}.bgp_acl_agent_state')
+        # js_path = '.bgp_acl_agent.entry{.ip=="'+peer_ip+'"}'
+        # Add_Telemetry( js_path, { "sequence_id": next_seq } )
+        Update_ACL_Counter( +1 )
+
 def Remove_ACL(gnmi,peer_ip):
    seq, next_seq = Find_ACL_entry(gnmi,peer_ip)
    if seq is not None:
@@ -199,6 +224,7 @@ def Remove_ACL(gnmi,peer_ip):
        v = checkIP(peer_ip)
        path = f'/acl/cpm-filter/ipv{v}-filter/entry[sequence-id={seq}]'
        gnmi.set( encoding='json_ietf', delete=[path] )
+       Update_ACL_Counter( -1 )
    else:
        logging.info(f"Remove_ACL: No entry found for peer_ip={peer_ip}")
 
@@ -210,12 +236,22 @@ def Remove_ACL(gnmi,peer_ip):
 #
 def Find_ACL_entry(gnmi,peer_ip):
 
-   # Can filter like this to reduce #entries
-   # path = '/acl/cpm-filter/ipv4-filter/entry[sequence-id=100*]
    v = checkIP(peer_ip)
-   path = f'/acl/cpm-filter/ipv{v}-filter/entry/match/' # source-ip'
+
+   #
+   # Can do it like this and add custom state, but then we cannot find the next
+   # available sequence number we can use
+   # path = f"/bgp-acl-agent/entry[ip={peer_ip}]"
+   path = f'/acl/cpm-filter/ipv{v}-filter/entry/match/'
+   # could add /source-ip/prefix but then we cannot check for dest-port
+
+   # Could filter like this to reduce #entries, limits to max 999 entries
+   # path = '/acl/cpm-filter/ipv4-filter/entry[sequence-id=1*]/match
+
+   # Interestingly, datatype='config' is required to see custom config state
+   # The default datatype='all' does not show it
    acl_entries = gnmi.get( encoding='json_ietf', path=[path] )
-   logging.info(f"Find_ACL_entry: GOT GET response :: {acl_entries}")
+   logging.info(f"Find_ACL_entry({peer_ip}): GOT GET response :: {acl_entries}")
    searched = peer_ip + '/' + ('32' if v==4 else '128')
    next_seq = acl_sequence_start
    for e in acl_entries['notification']:
@@ -226,24 +262,27 @@ def Find_ACL_entry(gnmi,peer_ip):
             for j in u['val']['entry']:
                logging.info(f"Check ACL entry :: {j}")
                match = j['match']
-               if 'source-ip' in match and j['sequence-id'] >= acl_sequence_start:
+               # Users could change acl_sequence_start
+               if 'source-ip' in match: # and j['sequence-id'] >= acl_sequence_start:
                   src_ip = match['source-ip']
-                  # custom extension currently not returned via gNMI
-                  # if 'bgp-acl-agent' in src_ip and ...
                   if 'prefix' in src_ip:
                      if (src_ip['prefix'] == searched):
-                         logging.info(f"Find_ACL_entry: Found matching entry :: {j}")
-
-                         # Perform extra sanity check
-                         if ('destination-port' in match
-                             and 'value' in match['destination-port']
-                             and match['destination-port']['value'] == 179):
-                            return (j['sequence-id'],None)
-                     elif j['sequence-id']==next_seq:
-                         ++next_seq
+                       logging.info(f"Find_ACL_entry: Found matching entry :: {j}")
+                       # Perform extra sanity check
+                       if ('destination-port' in match
+                            and 'value' in match['destination-port']
+                            and match['destination-port']['value'] == 179):
+                           return (j['sequence-id'],None)
+                       else:
+                           logging.info( "Source IP match but not BGP port" )
+                     if j['sequence-id']==next_seq:
+                       logging.info( f"Increment next_seq (={next_seq})" )
+                       next_seq += 1
+               else:
+                  logging.info( "No source-ip in entry" )
      except Exception as e:
         logging.error(f'Exception caught in Find_ACL_entry :: {e}')
-   logging.info(f"Find_ACL_entry: no match for searched={searched}")
+   logging.info(f"Find_ACL_entry: no match for searched={searched} next_seq={next_seq}")
    return (None,next_seq)
 
 ##################################################################################################
