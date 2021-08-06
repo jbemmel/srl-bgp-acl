@@ -81,7 +81,7 @@ module bgp-acl-agent {
      // Add a flag that is visible in the CLI, such that users can see
      leaf created-by-bgp-acl-agent {
         description "Timestamp added by BGP ACL agent to mark this entry";
-        type srl_nokia-comm:date-and-time-delta;
+        type string; // no point to make this srl_nokia-comm:date-and-time-delta;
 
         must "(../match/protocol = 'tcp' or ../match/next-header = 'tcp') and ../match/destination-port/value = 179" {
           error-message "The BGP ACL agent only manages TCP entries for port 179";

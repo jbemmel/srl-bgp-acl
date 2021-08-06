@@ -197,7 +197,7 @@ def Add_ACL(gnmi,peer_ip):
     if seq is None:
         v = checkIP(peer_ip)
         acl_entry = {
-          "created-by-bgp-acl-agent" : datetime.now().strftime("%Y-%m-%dT%H:%M:%SZ"),
+          "created-by-bgp-acl-agent" : datetime.now().strftime("%Y-%m-%d %H:%M:%S UTC"),
           "match": {
             ("protocol" if v==4 else "next-header"): "tcp",
             "source-ip": { "prefix": peer_ip + '/' + ('32' if v==4 else '128') },
