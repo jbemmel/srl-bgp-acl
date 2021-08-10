@@ -10,8 +10,17 @@ ifndef SR_LINUX_RELEASE
 override SR_LINUX_RELEASE="latest"
 endif
 
-build:
+.PHONY: build build-combined do-build
+
+do-build:
 	sudo docker build --build-arg SRL_AUTO_CONFIG_RELEASE=${TAG} \
 	 --build-arg http_proxy=${HTTP_PROXY} --build-arg https_proxy=${HTTP_PROXY} \
-	 --build-arg SR_LINUX_RELEASE="${SR_LINUX_RELEASE}" -f Dockerfile -t ${IMG} .
+	 --build-arg SR_LINUX_RELEASE="${SR_LINUX_RELEASE}" \
+	 --build-arg SR_BASEIMG="${BASEIMG}" -f Dockerfile -t ${IMG} .
 	sudo docker tag ${IMG} ${LATEST}
+
+build: BASEIMG="ghcr.io/nokia/srlinux"
+build: do-build
+
+build-combined: BASEIMG="srl/auto-config"
+build-combined: do-build

@@ -1,5 +1,6 @@
 ARG SR_LINUX_RELEASE
-FROM ghcr.io/nokia/srlinux:$SR_LINUX_RELEASE
+ARG SR_BASEIMG
+FROM $SR_BASEIMG:$SR_LINUX_RELEASE
 # FROM registry.srlinux.dev/pub/srlinux:$SR_LINUX_RELEASE
 
 # Install pyGNMI to /usr/local/lib[64]/python3.6/site-packages
