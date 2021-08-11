@@ -130,7 +130,7 @@ def Gnmi_subscribe_bgp_changes():
             'encoding': 'json'
         }
     _bgp = re.compile( r'^network-instance\[name=([^]]*)\]/protocols/bgp/neighbor\[peer-address=([^]]*)\]/admin-state$' )
-    _dyn = re.compile( r'^network-instance\[name=([^]]*)\]/protocols/bgp/dynamic-neighbors/accept/match[prefix=([^]]*)\]/peer-group$' )
+    _dyn = re.compile( r'^network-instance\[name=([^]]*)\]/protocols/bgp/dynamic-neighbors/accept/match\[prefix=([^]]*)\]/peer-group$' )
 
     # with Namespace('/var/run/netns/srbase-mgmt', 'net'):
     with gNMIclient(target=('unix:///opt/srlinux/var/run/sr_gnmi_server',57400),
