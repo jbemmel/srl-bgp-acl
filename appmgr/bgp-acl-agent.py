@@ -187,7 +187,7 @@ def handleDelete(gnmi,m):
 #
 def checkIP( ip_prefix ):
     try:
-        v = 4 if type(ip_address(ip)) is IPv4Address else 6
+        v = 4 if type(ip_address(ip_prefix[0])) is IPv4Address else 6
         if len(ip_prefix)==1:
            ip_prefix[1] = '32' if v==4 else '128'
         return v
@@ -268,8 +268,8 @@ def Find_ACL_entry(gnmi,ip_prefix):
    # Interestingly, datatype='config' is required to see custom config state
    # The default datatype='all' does not show it
    acl_entries = gnmi.get( encoding='json_ietf', path=[path] )
-   logging.info(f"Find_ACL_entry({peer_ip}): GOT GET response :: {acl_entries}")
-   searched = peer_ip + '/' + ('32' if v==4 else '128')
+   logging.info(f"Find_ACL_entry({ip_prefix}): GOT GET response :: {acl_entries}")
+   searched = ip_prefix[0] + '/' + ip_prefix[1]
    next_seq = acl_sequence_start
    for e in acl_entries['notification']:
      try:
