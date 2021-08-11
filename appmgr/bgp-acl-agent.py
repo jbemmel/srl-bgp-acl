@@ -223,7 +223,7 @@ def Add_ACL(gnmi,ip_prefix,net_inst,peer_type):
           "description": f"BGP ({peer_type}) peer in network-instance {net_inst}",
           "match": {
             ("protocol" if v==4 else "next-header"): "tcp",
-            "source-ip": { "prefix": ip_prefix[0] + '/' + ip_prefix[1] },
+            "source-ip": { "prefix": ip + '/' + prefix },
             "destination-port": { "operator": "eq", "value": 179 }
           },
           "action": { "accept": { } },
