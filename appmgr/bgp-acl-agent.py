@@ -119,6 +119,10 @@ def Gnmi_subscribe_bgp_changes():
                     # Mode 'sample' results in polling
                     # 'mode': 'sample',
                     # 'sample_interval': 10 * 1000000000 # ns between samples, i.e. 10s
+                },
+                {  # Also monitor dynamic-neighbors sections
+                   'path': '/network-instance[name=*]/protocols/bgp/dynamic-neighbors/accept/match[prefix=*]',
+                   'mode': 'on_change',
                 }
             ],
             'use_aliases': False,
@@ -126,6 +130,7 @@ def Gnmi_subscribe_bgp_changes():
             'encoding': 'json'
         }
     _bgp = re.compile( r'^network-instance\[name=([^]]*)\]/protocols/bgp/neighbor\[peer-address=([^]]*)\]/admin-state$' )
+    _dyn = re.compile( r'^network-instance\[name=([^]]*)\]/protocols/bgp/dynamic-neighbors/accept/match[prefix=([^]]*)\]/peer-group$' )
 
     # with Namespace('/var/run/netns/srbase-mgmt', 'net'):
     with gNMIclient(target=('unix:///opt/srlinux/var/run/sr_gnmi_server',57400),
@@ -142,12 +147,19 @@ def Gnmi_subscribe_bgp_changes():
               if update['update']:
                  path = update['update'][0]['path']  # Only look at top level
                  neighbor = _bgp.match( path )
-                 if not neighbor:
-                    logging.info(f"Ignoring gNMI change event :: {path}")
-                    continue
-                 peer_ip = neighbor.groups()[1]
+                 if neighbor:
+                    ip_prefix = neighbor.groups()[1]
+                    logging.info(f"Got neighbor change event :: {peer_ip}")
+                 else:
+                    dyn_group = _dyn.match( path )
+                    if dyn_group:
+                       ip_prefix = dyn_group.groups()[1] # prefix
+                    else:
+                      logging.info(f"Ignoring gNMI change event :: {path}")
+                      continue
+
                  # No-op if already exists
-                 Add_ACL(c,peer_ip)
+                 Add_ACL(c,ip_prefix.split('/'))
               else: # pygnmi does not provide 'path' for delete events
                  handleDelete(c,m)
 
@@ -160,6 +172,7 @@ def handleDelete(gnmi,m):
     logging.info(f"handleDelete :: {m}")
     for e in m.update.delete:
        for p in e.elem:
+         # TODO dynamic-neighbors
          if p.name == "neighbor":
            for n,v in p.key.items():
              logging.info(f"n={n} v={v}")
@@ -168,9 +181,15 @@ def handleDelete(gnmi,m):
                 Remove_ACL(gnmi,peer_ip)
                 return # XXX could be multiple peers deleted in 1 go?
 
-def checkIP(ip):
+#
+# Checks if this is an IPv4 or IPv6 address, and normalizes host prefixes
+#
+def checkIP( ip_prefix ):
     try:
-        return 4 if type(ip_address(ip)) is IPv4Address else 6
+        v = 4 if type(ip_address(ip)) is IPv4Address else 6
+        if len(ip_prefix)==1:
+           ip_prefix[1] = '32' if v==4 else '128'
+        return v
     except ValueError:
         return None
 
@@ -192,15 +211,15 @@ def Update_ACL_Counter(delta):
     Add_Telemetry( ".bgp_acl_agent", { "acl_count"   : acl_count,
                                        "last_change" : _ts } )
 
-def Add_ACL(gnmi,peer_ip):
-    seq, next_seq = Find_ACL_entry(gnmi,peer_ip) # Also returns next available entry
+def Add_ACL(gnmi,ip_prefix):
+    seq, next_seq = Find_ACL_entry(gnmi,ip_prefix) # Also returns next available entry
     if seq is None:
-        v = checkIP(peer_ip)
+        v = checkIP(ip_prefix)
         acl_entry = {
           "created-by-bgp-acl-agent" : datetime.now().strftime("%Y-%m-%d %H:%M:%S UTC"),
           "match": {
             ("protocol" if v==4 else "next-header"): "tcp",
-            "source-ip": { "prefix": peer_ip + '/' + ('32' if v==4 else '128') },
+            "source-ip": { "prefix": ip_prefix[0] + '/' + ip_prefix[1] },
             "destination-port": { "operator": "eq", "value": 179 }
           },
           "action": { "accept": { } },
@@ -218,10 +237,9 @@ def Add_ACL(gnmi,peer_ip):
         Update_ACL_Counter( +1 )
 
 def Remove_ACL(gnmi,peer_ip):
-   seq, next_seq = Find_ACL_entry(gnmi,peer_ip)
+   seq, next_seq, v = Find_ACL_entry(gnmi,[peer_ip])
    if seq is not None:
        logging.info(f"Remove_ACL: Deleting ACL entry :: {seq}")
-       v = checkIP(peer_ip)
        path = f'/acl/cpm-filter/ipv{v}-filter/entry[sequence-id={seq}]'
        gnmi.set( encoding='json_ietf', delete=[path] )
        Update_ACL_Counter( -1 )
@@ -234,9 +252,8 @@ def Remove_ACL(gnmi,peer_ip):
 # lookup based on IP address each time
 # Since 'prefix' is not a key, we have to loop through all entries with a prefix
 #
-def Find_ACL_entry(gnmi,peer_ip):
-
-   v = checkIP(peer_ip)
+def Find_ACL_entry(gnmi,ip_prefix):
+   v = checkIP( ip_prefix )
 
    #
    # Can do it like this and add custom state, but then we cannot find the next
@@ -272,7 +289,7 @@ def Find_ACL_entry(gnmi,peer_ip):
                        if ('destination-port' in match
                             and 'value' in match['destination-port']
                             and match['destination-port']['value'] == 179):
-                           return (j['sequence-id'],None)
+                           return (j['sequence-id'],None,v)
                        else:
                            logging.info( "Source IP match but not BGP port" )
                      if j['sequence-id']==next_seq:
@@ -283,7 +300,7 @@ def Find_ACL_entry(gnmi,peer_ip):
      except Exception as e:
         logging.error(f'Exception caught in Find_ACL_entry :: {e}')
    logging.info(f"Find_ACL_entry: no match for searched={searched} next_seq={next_seq}")
-   return (None,next_seq)
+   return (None,next_seq,v)
 
 ##################################################################################################
 ## This is the main proc where all processing for auto_config_agent starts.
