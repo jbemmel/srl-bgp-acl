@@ -149,11 +149,12 @@ def Gnmi_subscribe_bgp_changes():
                  neighbor = _bgp.match( path )
                  if neighbor:
                     ip_prefix = neighbor.groups()[1]
-                    logging.info(f"Got neighbor change event :: {peer_ip}")
+                    logging.info(f"Got neighbor change event :: {ip_prefix}")
                  else:
                     dyn_group = _dyn.match( path )
                     if dyn_group:
                        ip_prefix = dyn_group.groups()[1] # prefix
+                       logging.info(f"Got dynamic-neighbor change event :: {ip_prefix}")
                     else:
                       logging.info(f"Ignoring gNMI change event :: {path}")
                       continue
