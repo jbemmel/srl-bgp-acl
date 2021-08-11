@@ -3,7 +3,7 @@ bgp_acl_agent:
    path: /etc/opt/srlinux/appmgr/
    launch-command: /etc/opt/srlinux/appmgr/bgp-acl-agent.sh
    search-command: python3 /etc/opt/srlinux/appmgr/bgp-acl-agent.py
-   wait-for-config: Yes
+   wait-for-config: No # no need to wait
    failure-threshold: 100
    failure-action: wait=forever
    author: 'Nokia'
