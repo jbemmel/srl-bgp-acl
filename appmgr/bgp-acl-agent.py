@@ -155,7 +155,7 @@ def Gnmi_subscribe_bgp_changes():
                  else:
                     dyn_group = _dyn.match( path )
                     if dyn_group:
-                       net_inst = dyn_group.groups()[1]
+                       net_inst = dyn_group.groups()[0]
                        ip_prefix = dyn_group.groups()[1] # ip/prefix
                        peer_type = "dynamic"
                        logging.info(f"Got dynamic-neighbor change event :: {ip_prefix}")
