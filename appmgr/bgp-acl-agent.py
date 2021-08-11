@@ -192,7 +192,8 @@ def handleDelete(gnmi,m):
 def checkIP( ip_prefix ):
     try:
         v = 4 if type(ip_address(ip_prefix[0])) is IPv4Address else 6
-        return v. ip_prefix[0], ip_prefix[1] if len(ip_prefix)>1 else ('32' if v==4 else '128')
+        prefix = ip_prefix[1] if len(ip_prefix)>1 else ('32' if v==4 else '128')
+        return v, ip_prefix[0], prefix
     except ValueError:
         return None
 
