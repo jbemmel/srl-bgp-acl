@@ -148,19 +148,23 @@ def Gnmi_subscribe_bgp_changes():
                  path = update['update'][0]['path']  # Only look at top level
                  neighbor = _bgp.match( path )
                  if neighbor:
-                    ip_prefix = neighbor.groups()[1]
+                    net_inst = neighbor.groups()[0]
+                    ip_prefix = neighbor.groups()[1] # plain ip
+                    peer_type = "static"
                     logging.info(f"Got neighbor change event :: {ip_prefix}")
                  else:
                     dyn_group = _dyn.match( path )
                     if dyn_group:
-                       ip_prefix = dyn_group.groups()[1] # prefix
+                       net_inst = dyn_group.groups()[1]
+                       ip_prefix = dyn_group.groups()[1] # ip/prefix
+                       peer_type = "dynamic"
                        logging.info(f"Got dynamic-neighbor change event :: {ip_prefix}")
                     else:
                       logging.info(f"Ignoring gNMI change event :: {path}")
                       continue
 
                  # No-op if already exists
-                 Add_ACL(c,ip_prefix.split('/'))
+                 Add_ACL(c,ip_prefix.split('/'),net_inst,peer_type)
               else: # pygnmi does not provide 'path' for delete events
                  handleDelete(c,m)
 
@@ -188,9 +192,7 @@ def handleDelete(gnmi,m):
 def checkIP( ip_prefix ):
     try:
         v = 4 if type(ip_address(ip_prefix[0])) is IPv4Address else 6
-        if len(ip_prefix)==1:
-           ip_prefix[1] = '32' if v==4 else '128'
-        return v
+        return v. ip_prefix[0], ip_prefix[1] if len(ip_prefix)>1 else ('32' if v==4 else '128')
     except ValueError:
         return None
 
@@ -212,11 +214,12 @@ def Update_ACL_Counter(delta):
     Add_Telemetry( ".bgp_acl_agent", { "acl_count"   : acl_count,
                                        "last_change" : _ts } )
 
-def Add_ACL(gnmi,ip_prefix):
-    seq, next_seq, v = Find_ACL_entry(gnmi,ip_prefix) # Also returns next available entry
+def Add_ACL(gnmi,ip_prefix,net_inst,peer_type):
+    seq, next_seq, v, ip, prefix = Find_ACL_entry(gnmi,ip_prefix) # Also returns next available entry
     if seq is None:
         acl_entry = {
-          "created-by-bgp-acl-agent" : datetime.now().strftime("%Y-%m-%d %H:%M:%S UTC"),
+          "created-by-bgp-acl-agent": datetime.now().strftime("%Y-%m-%d %H:%M:%S UTC"),
+          "description": f"BGP ({peer_type}) peer in network-instance {net_inst}",
           "match": {
             ("protocol" if v==4 else "next-header"): "tcp",
             "source-ip": { "prefix": ip_prefix[0] + '/' + ip_prefix[1] },
@@ -237,7 +240,7 @@ def Add_ACL(gnmi,ip_prefix):
         Update_ACL_Counter( +1 )
 
 def Remove_ACL(gnmi,peer_ip):
-   seq, next_seq, v = Find_ACL_entry(gnmi,[peer_ip])
+   seq, next_seq, v, ip, prefix = Find_ACL_entry(gnmi,[peer_ip])
    if seq is not None:
        logging.info(f"Remove_ACL: Deleting ACL entry :: {seq}")
        path = f'/acl/cpm-filter/ipv{v}-filter/entry[sequence-id={seq}]'
@@ -253,7 +256,7 @@ def Remove_ACL(gnmi,peer_ip):
 # Since 'prefix' is not a key, we have to loop through all entries with a prefix
 #
 def Find_ACL_entry(gnmi,ip_prefix):
-   v = checkIP( ip_prefix )
+   v, ip, prefix = checkIP( ip_prefix )
 
    #
    # Can do it like this and add custom state, but then we cannot find the next
@@ -269,7 +272,7 @@ def Find_ACL_entry(gnmi,ip_prefix):
    # The default datatype='all' does not show it
    acl_entries = gnmi.get( encoding='json_ietf', path=[path] )
    logging.info(f"Find_ACL_entry({ip_prefix}): GOT GET response :: {acl_entries}")
-   searched = ip_prefix[0] + '/' + ip_prefix[1]
+   searched = ip + '/' + prefix
    next_seq = acl_sequence_start
    for e in acl_entries['notification']:
      try:
@@ -289,7 +292,7 @@ def Find_ACL_entry(gnmi,ip_prefix):
                        if ('destination-port' in match
                             and 'value' in match['destination-port']
                             and match['destination-port']['value'] == 179):
-                           return (j['sequence-id'],None,v)
+                           return (j['sequence-id'],None,v,ip,prefix)
                        else:
                            logging.info( "Source IP match but not BGP port" )
                      if j['sequence-id']==next_seq:
@@ -300,7 +303,7 @@ def Find_ACL_entry(gnmi,ip_prefix):
      except Exception as e:
         logging.error(f'Exception caught in Find_ACL_entry :: {e}')
    logging.info(f"Find_ACL_entry: no match for searched={searched} next_seq={next_seq}")
-   return (None,next_seq,v)
+   return (None,next_seq,v,ip,prefix)
 
 ##################################################################################################
 ## This is the main proc where all processing for auto_config_agent starts.
