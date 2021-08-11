@@ -212,9 +212,8 @@ def Update_ACL_Counter(delta):
                                        "last_change" : _ts } )
 
 def Add_ACL(gnmi,ip_prefix):
-    seq, next_seq = Find_ACL_entry(gnmi,ip_prefix) # Also returns next available entry
+    seq, next_seq, v = Find_ACL_entry(gnmi,ip_prefix) # Also returns next available entry
     if seq is None:
-        v = checkIP(ip_prefix)
         acl_entry = {
           "created-by-bgp-acl-agent" : datetime.now().strftime("%Y-%m-%d %H:%M:%S UTC"),
           "match": {
