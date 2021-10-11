@@ -71,6 +71,7 @@ admin-state enable
 commit now
 
 # The above creates an ACL entry under /acl cpm-filter ipv6-filter
+info /acl cpm-filter ipv6-filter entry 1000
 
 enter candidate
 exit
