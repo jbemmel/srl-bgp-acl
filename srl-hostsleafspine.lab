@@ -6,9 +6,12 @@ topology:
       # Need IXR D2 or D3 for EVPN/VXLAN support
       type: ixrd2 # See https://www.nokia.com/networks/products/7250-interconnect-router/
       image: srl/bgp-acl:latest
+      # agents:
+      # - appmgr/bgp-acl-agent.yml
 
   nodes:
-    spine1: { kind: srl, startup-config: ../srl-docter-agent/auto-spine.cfg.json }
+    spine1: { kind: srl, startup-config: ../srl-docter-agent/auto-spine.cfg.json, reset-startup-config: true }
+    # leaf1:  { kind: srl, startup-config: ../srl-docter-agent/auto-leaf.cfg.json, agents: ["appmgr/bgp-acl-agent.yml"] }
     leaf1:  { kind: srl, startup-config: ../srl-docter-agent/auto-leaf.cfg.json }
     leaf2:  { kind: srl, startup-config: ../srl-docter-agent/auto-leaf.cfg.json }
 

@@ -1,8 +1,8 @@
 # See example_config.yml for an explanation of all the accepted fields
 bgp_acl_agent:
-   path: /etc/opt/srlinux/appmgr/
-   launch-command: /etc/opt/srlinux/appmgr/bgp-acl-agent.sh
-   search-command: python3 /etc/opt/srlinux/appmgr/bgp-acl-agent.py
+   path: /opt/demo-agents/bgp-acl-agent
+   launch-command: /opt/demo-agents/bgp-acl-agent/bgp-acl-agent.sh
+   search-command: python3 /opt/demo-agents/bgp-acl-agent/bgp-acl-agent.py
    wait-for-config: No # no need to wait
    failure-threshold: 100
    failure-action: wait=forever
@@ -12,7 +12,7 @@ bgp_acl_agent:
        names:
        - "bgp-acl-agent"
        source-directories:
-       - "/etc/opt/srlinux/appmgr/"
+       - "/opt/demo-agents/bgp-acl-agent/"
        - "/opt/srlinux/models/srl_nokia/models/common/"
        - "/opt/srlinux/models/srl_nokia/models/interfaces/"
        - "/opt/srlinux/models/srl_nokia/models/acl/"

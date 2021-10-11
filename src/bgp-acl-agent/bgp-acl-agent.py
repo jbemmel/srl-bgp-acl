@@ -177,7 +177,7 @@ def handleDelete(gnmi,m):
     logging.info(f"handleDelete :: {m}")
     for e in m.update.delete:
        for p in e.elem:
-         # TODO dynamic-neighbors
+         # TODO dynamic-neighbors, also modify of prefix in dynamic-neighbors
          if p.name == "neighbor":
            for n,v in p.key.items():
              logging.info(f"n={n} v={v}")

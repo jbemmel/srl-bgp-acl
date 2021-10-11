@@ -8,10 +8,10 @@ RUN sudo yum install -y python3-pip gcc-c++ && \
     sudo python3 -m pip install pip --upgrade && \
     sudo python3 -m pip install pygnmi
 
-# --chown=srlinux:srlinux
-RUN sudo mkdir -p /etc/opt/srlinux/appmgr/
-COPY ./appmgr/ /etc/opt/srlinux/appmgr
+RUN sudo mkdir --mode=0755 -p /etc/opt/srlinux/appmgr/
+COPY --chown=srlinux:srlinux ./bgp-acl-agent.yml /etc/opt/srlinux/appmgr
+COPY ./src /opt/demo-agents/
 
 # Using a build arg to set the release tag, set a default for running docker build manually
-ARG SRL_AUTO_CONFIG_RELEASE="[custom build]"
-ENV SRL_AUTO_CONFIG_RELEASE=$SRL_AUTO_CONFIG_RELEASE
+ARG SRL_BGL_ACL_RELEASE="[custom build]"
+ENV SRL_BGL_ACL_RELEASE=$SRL_BGL_ACL_RELEASE

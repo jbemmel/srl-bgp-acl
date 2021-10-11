@@ -17,7 +17,7 @@ function main()
 {
     trap _term SIGTERM
     local virtual_env="/opt/srlinux/python/virtual-env/bin/activate"
-    local main_module="/etc/opt/srlinux/appmgr/bgp-acl-agent.py"
+    local main_module="/opt/demo-agents/bgp-acl-agent/bgp-acl-agent.py"
 
     # source the virtual-environment, which is used to ensure the correct python packages are installed,
     # and the correct python version is used
@@ -30,10 +30,6 @@ function main()
     # since 21.6
     SDK2="/usr/lib/python3.6/site-packages/sdk_protos"
     export PYTHONPATH="$P1:$P2:$NDK:$SDK2:$PYTHONPATH"
-
-    export http_proxy=""
-    export https_proxy=""
-    export no_proxy=""
 
     # [[ ! -f /var/run/netns/srbase-mgmt ]] && sleep 10
     # /usr/sbin/ip netns exec srbase-mgmt python3 ${main_module} &

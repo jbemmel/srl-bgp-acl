@@ -4,7 +4,8 @@ topology:
   kinds:
     srl:
       image: srl/bgp-acl:latest
-      license: ../license.key
+      extras:
+         srl-agents: [ ./bgp-acl-agent.yml ]
 
   nodes:
     spine1: { kind: srl, startup-config: spine1.cfg }
