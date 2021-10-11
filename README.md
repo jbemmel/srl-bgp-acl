@@ -53,6 +53,8 @@ admin-state enable
 exit
 commit now
 
+info /acl cpm-filter ipv4-filter
+
 enter candidate
 delete neighbor 1.2.3.4
 delete neighbor 5.6.7.8
