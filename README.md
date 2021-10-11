@@ -12,7 +12,7 @@ sudo containerlab deploy -t ./srl-node.lab
 ```
 
 # Test
-1. Login to CLI
+1. Login to CLI (password: admin)
 ```
 ssh admin@clab-bgp-acl-lab-spine1
 ```
