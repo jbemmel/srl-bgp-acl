@@ -5,6 +5,9 @@ SR Linux agent to auto-create ACLs in response to BGP peers being added/removed
 * make
 * [Containerlab](https://containerlab.srlinux.dev/)
 
+The agent connects to the NDK using a local Unix socket, which must be enabled in the configuration.
+This is now added/checked as a condition in the Yang model.
+
 # Setup
 ```
 make build
