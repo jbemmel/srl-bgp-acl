@@ -1,0 +1,13 @@
+name: "bgp-acl-agent"   # name of the rpm package
+arch: "amd64"         # architecture you are using
+version: "v1.0.0"     # version of this rpm package
+maintainer: "Jeroen van Bemmel <jeroen.van_bemmel@nokia.com"
+description: Agent to automatically create an ACL entry when a BGP peer is added
+vendor: "Nokia"     # optional information about the creator of the package
+license: "Apache 2.0"
+contents:                              # contents to add to the package
+  - src: ./rpmbuild
+    dst: /opt/     # destination path (including yang)
+
+  - src: ./bgp-acl-agent.yml    # local path of agent yml
+    dst: /etc/opt/srlinux/appmgr/bgp-acl-agent.yml

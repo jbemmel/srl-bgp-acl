@@ -1,0 +1,55 @@
+ARG SR_LINUX_RELEASE
+FROM srl/custombase:$SR_LINUX_RELEASE AS base
+
+# Setup env
+ENV LANG C.UTF-8
+ENV LC_ALL C.UTF-8
+ENV PYTHONDONTWRITEBYTECODE 1
+ENV PYTHONFAULTHANDLER 1
+ENV AGENT_DIR /opt/demo-agents/bgp-acl-agent/
+
+FROM base AS agent-deps
+
+# Install pipenv and compilation dependencies
+RUN sudo python3 -m pip install pipenv==2021.11.09
+# RUN apt-get update && apt-get install -y --no-install-recommends gcc
+
+# Install python dependencies in ${AGENT_DIR}/.venv
+COPY Pipfile ${AGENT_DIR}
+
+# Lock file is created in a different environment, leave out for now
+# COPY Pipfile.lock .
+RUN cd ${AGENT_DIR} && \
+    sudo PIPENV_VENV_IN_PROJECT=1 /usr/local/bin/pipenv install --deploy --site-packages
+
+# Install build tools, also python3-bcc
+# RUN sudo yum install -y gcc-c++ git python3-devel openssl-devel python3-bcc
+
+# Need to upgrade pip and setuptools
+RUN sudo python3 -m pip install --upgrade pip setuptools
+
+FROM base AS runtime
+
+# Copy virtual env from agent-deps stage
+# Also includes generated lock file, for versions (included in .rpm)
+COPY --from=agent-deps ${AGENT_DIR} ${AGENT_DIR}
+
+# Copy bcc files separately, Python bcc package is not enough
+# COPY --from=agent-deps /usr/lib/python3.6/site-packages/bcc /opt/static-vxlan-agent/.venv/lib/python3.6/site-packages/bcc
+
+ENV PATH="${AGENT_DIR}.venv/bin:$PATH"
+
+# Create and switch to a new user
+# RUN useradd --create-home appuser
+# WORKDIR /home/appuser
+# USER appuser
+
+# Install application into container
+COPY src /opt
+
+# run pylint to catch any obvious errors (includes .venv?)
+# RUN PYTHONPATH=${AGENT_DIR}.venv/lib/python3.6/site-packages/:$AGENT_PYTHONPATH pylint --load-plugins=pylint_protobuf -E ${AGENT_DIR}
+
+# Using a build arg to set the release tag, set a default for running docker build manually
+ARG SRL_BGP_ACL_RELEASE="[custom build]"
+ENV SRL_BGP_ACL_RELEASE=$SRL_BGP_ACL_RELEASE
