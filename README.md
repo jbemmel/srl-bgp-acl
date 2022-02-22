@@ -84,6 +84,19 @@ To look at logs:
 docker exec clab-bgp-acl-lab-spine1 cat /var/log/srlinux/stdout/bgp_acl_agent.log
 ```
 
+# .rpm package
+A .rpm package was added to simplify installation onto physical nodes:
+
+To build an .rpm:
+```
+make rpm
+```
+
+To install the .rpm in a bash shell on a node:
+```
+yum localinstall bgp-acl-agent-1.0.0.x86_64.rpm
+```
+
 ## Implementation notes
 The code registers with the SR Linux NDK to allow for (simple) configuration of the base sequence number of dynamically created ACL entries.
 In parallel, it connects through gNMI to the local system using a unix socket (assuming default username/password, hardcoded).
