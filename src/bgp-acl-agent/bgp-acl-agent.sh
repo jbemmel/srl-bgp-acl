@@ -16,7 +16,8 @@ _term (){
 function main()
 {
     trap _term SIGTERM
-    local virtual_env="/opt/srlinux/python/virtual-env/bin/activate"
+    # local virtual_env="/opt/srlinux/python/virtual-env/bin/activate"
+    local virtual_env="/opt/demo-agents/bgp-acl-agent/.venv/bin/activate"
     local main_module="/opt/demo-agents/bgp-acl-agent/bgp-acl-agent.py"
 
     # source the virtual-environment, which is used to ensure the correct python packages are installed,
@@ -24,12 +25,12 @@ function main()
     source "${virtual_env}"
 
     # Include local paths where custom packages are installed
-    P1="/usr/local/lib/python3.6/site-packages"
-    P2="/usr/local/lib64/python3.6/site-packages"
+    # P1="/usr/local/lib/python3.6/site-packages"
+    # P2="/usr/local/lib64/python3.6/site-packages"
     NDK="/opt/rh/rh-python36/root/usr/lib/python3.6/site-packages/sdk_protos"
     # since 21.6
     SDK2="/usr/lib/python3.6/site-packages/sdk_protos"
-    export PYTHONPATH="$P1:$P2:$NDK:$SDK2:$PYTHONPATH"
+    export PYTHONPATH="$NDK:$SDK2:$PYTHONPATH"
 
     # [[ ! -f /var/run/netns/srbase-mgmt ]] && sleep 10
     # /usr/sbin/ip netns exec srbase-mgmt python3 ${main_module} &

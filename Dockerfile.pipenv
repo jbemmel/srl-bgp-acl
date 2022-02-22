@@ -45,10 +45,10 @@ ENV PATH="${AGENT_DIR}.venv/bin:$PATH"
 # USER appuser
 
 # Install application into container
-COPY src /opt
+COPY src /opt/demo-agents
 
 # run pylint to catch any obvious errors (includes .venv?)
-# RUN PYTHONPATH=${AGENT_DIR}.venv/lib/python3.6/site-packages/:$AGENT_PYTHONPATH pylint --load-plugins=pylint_protobuf -E ${AGENT_DIR}
+RUN PYTHONPATH=${AGENT_DIR}.venv/lib/python3.6/site-packages/:$AGENT_PYTHONPATH pylint --load-plugins=pylint_protobuf -E ${AGENT_DIR}
 
 # Using a build arg to set the release tag, set a default for running docker build manually
 ARG SRL_BGP_ACL_RELEASE="[custom build]"

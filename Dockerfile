@@ -1,3 +1,7 @@
+#
+# Old version, no longer used. Does not create a venv
+#
+
 ARG SR_LINUX_RELEASE
 ARG SR_BASEIMG
 FROM $SR_BASEIMG:$SR_LINUX_RELEASE

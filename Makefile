@@ -16,10 +16,10 @@ build: BASEIMG="ghcr.io/nokia/srlinux"
 build: do-build
 
 do-build:
-	sudo docker build --build-arg SRL_BGL_ACL_RELEASE=${TAG} \
+	sudo docker build --build-arg SRL_BGP_ACL_RELEASE=${TAG} \
 	 --build-arg http_proxy=${HTTP_PROXY} --build-arg https_proxy=${HTTP_PROXY} \
 	 --build-arg SR_LINUX_RELEASE="${SR_LINUX_RELEASE}" \
-	 --build-arg SR_BASEIMG="${BASEIMG}" -f Dockerfile -t ${IMG} .
+	 --build-arg SR_BASEIMG="${BASEIMG}" -f Dockerfile.pipenv -t ${IMG} .
 	sudo docker tag ${IMG} ${LATEST}
 
 build-combined: BASEIMG="srl/auto-config"
@@ -27,7 +27,7 @@ build-combined: do-build
 
 CREATE_CONTAINER := $(shell docker create ${LATEST})
 SET_CONTAINER_ID = $(eval CONTAINER_ID=$(CREATE_CONTAINER))
-rpm: pipenv
+rpm: build
 	mkdir -p rpmbuild
 	$(SET_CONTAINER_ID)
 	docker cp --follow-link ${CONTAINER_ID}:/opt/demo-agents/ rpmbuild/
@@ -40,11 +40,3 @@ rpm: pipenv
     --target /tmp \
     --packager rpm
 	# rm -rf rpmbuild
-
-pipenv:
-	sudo docker build --build-arg SRL_BGL_ACL_RELEASE=${TAG} \
-	                  --build-arg http_proxy=${HTTP_PROXY} \
-										--build-arg https_proxy=${HTTP_PROXY} \
-	                  --build-arg SR_LINUX_RELEASE="${SR_LINUX_RELEASE}" \
-	                  -f ./Dockerfile.pipenv -t ${IMG} .
-	sudo docker tag ${IMG} ${LATEST}

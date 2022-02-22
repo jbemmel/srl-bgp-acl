@@ -31,6 +31,10 @@ module bgp-acl-agent {
             description "Top level enclosing container for BGP ACL agent app
                          config and global operational state data";
 
+            must "/system/gnmi-server/unix-socket/admin-state = 'enable'" {
+              error-message "This agent requires the gNMI Unix socket to be enabled";
+            }
+
             leaf acl-sequence-start {
                 description "Initial sequence number to use for generated ACL entries";
                 type uint16;
