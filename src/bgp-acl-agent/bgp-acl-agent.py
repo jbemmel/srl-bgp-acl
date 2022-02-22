@@ -343,29 +343,21 @@ def Run():
 
     except Exception as e:
         logging.error(f'Exception caught :: {e}')
-        #if file_name != None:
-        #    Update_Result(file_name, action='delete')
-        try:
-            response = stub.AgentUnRegister(request=sdk_service_pb2.AgentRegistrationRequest(), metadata=metadata)
-            logging.error(f'Run try: Unregister response:: {response}')
-        except grpc._channel._Rendezvous as err:
-            logging.info(f'GOING TO EXIT NOW: {err}')
-            sys.exit()
-        return True
-    sys.exit()
+    finally:
+        Exit_Gracefully(0,0)
     return True
 ############################################################
 ## Gracefully handle SIGTERM signal
 ## When called, will unregister Agent and gracefully exit
 ############################################################
 def Exit_Gracefully(signum, frame):
-    logging.info("Caught signal :: {}\n will unregister bgp acl agent".format(signum))
+    logging.info( f"Caught signal :: {signum}\n will unregister bgp acl agent" )
     try:
         response=stub.AgentUnRegister(request=sdk_service_pb2.AgentRegistrationRequest(), metadata=metadata)
-        logging.error('try: Unregister response:: {}'.format(response))
-        sys.exit()
+        logging.info( f'Exit_Gracefully AgentUnRegister response:: {response}' )
     except grpc._channel._Rendezvous as err:
-        logging.info('GOING TO EXIT NOW: {}'.format(err))
+        logging.info( f'_Rendezvous error - GOING TO EXIT NOW: {err}' )
+    finally:
         sys.exit()
 
 ##################################################################################################
@@ -385,7 +377,4 @@ if __name__ == '__main__':
       format='%(asctime)s,%(msecs)03d %(name)s %(levelname)s %(message)s',
       datefmt='%H:%M:%S', level=logging.INFO)
     logging.info("START TIME :: {}".format(datetime.now()))
-    if Run():
-        logging.info('Agent unregistered')
-    else:
-        logging.info('Should not happen')
+    Run()

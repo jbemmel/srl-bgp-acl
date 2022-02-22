@@ -1,5 +1,6 @@
 ARG SR_LINUX_RELEASE
-FROM srl/custombase:$SR_LINUX_RELEASE AS base
+ARG SR_BASEIMG
+FROM $SR_BASEIMG:$SR_LINUX_RELEASE as base
 
 # Setup env
 ENV LANG C.UTF-8
@@ -34,9 +35,6 @@ FROM base AS runtime
 # Also includes generated lock file, for versions (included in .rpm)
 COPY --from=agent-deps ${AGENT_DIR} ${AGENT_DIR}
 
-# Copy bcc files separately, Python bcc package is not enough
-# COPY --from=agent-deps /usr/lib/python3.6/site-packages/bcc /opt/static-vxlan-agent/.venv/lib/python3.6/site-packages/bcc
-
 ENV PATH="${AGENT_DIR}.venv/bin:$PATH"
 
 # Create and switch to a new user
@@ -48,7 +46,7 @@ ENV PATH="${AGENT_DIR}.venv/bin:$PATH"
 COPY src /opt/demo-agents
 
 # run pylint to catch any obvious errors (includes .venv?)
-RUN PYTHONPATH=${AGENT_DIR}.venv/lib/python3.6/site-packages/:$AGENT_PYTHONPATH pylint --load-plugins=pylint_protobuf -E ${AGENT_DIR}
+# RUN PYTHONPATH=${AGENT_DIR}.venv/lib/python3.6/site-packages/:$AGENT_PYTHONPATH pylint --load-plugins=pylint_protobuf -E ${AGENT_DIR}
 
 # Using a build arg to set the release tag, set a default for running docker build manually
 ARG SRL_BGP_ACL_RELEASE="[custom build]"

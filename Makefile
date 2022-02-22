@@ -12,7 +12,7 @@ endif
 
 .PHONY: build build-combined do-build
 
-build: BASEIMG="ghcr.io/nokia/srlinux"
+build: BASEIMG=ghcr.io/nokia/srlinux
 build: do-build
 
 do-build:
@@ -22,7 +22,7 @@ do-build:
 	 --build-arg SR_BASEIMG="${BASEIMG}" -f Dockerfile.pipenv -t ${IMG} .
 	sudo docker tag ${IMG} ${LATEST}
 
-build-combined: BASEIMG="srl/auto-config"
+build-combined: BASEIMG=srl/auto-config-v2
 build-combined: do-build
 
 CREATE_CONTAINER := $(shell docker create ${LATEST})
