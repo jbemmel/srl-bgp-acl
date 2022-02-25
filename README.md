@@ -22,8 +22,10 @@ ssh admin@clab-bgp-acl-lab-spine1
 
 2. Enable the agent (requires Unix gNMI socket)
 ```
+enter candidate
 /system gnmi-server unix-socket admin-state enable
 /bgp-acl-agent acl-sequence-start 1000
+commit stay
 ```
 
 3. Copy & paste following CLI snippet (or part of it)
