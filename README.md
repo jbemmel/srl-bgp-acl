@@ -20,10 +20,16 @@ sudo containerlab deploy -t ./srl-node.lab
 ssh admin@clab-bgp-acl-lab-spine1
 ```
 
-2. Enable the agent (requires Unix gNMI socket)
+2. Enable the agent (requires Unix gNMI socket). Note that BGP context must exist before agent starts
 ```
 enter candidate
 /system gnmi-server unix-socket admin-state enable
+
+# Make sure bgp context exists
+/network-instance default protocols bgp
+router-id 1.2.3.4
+autonomous-system 12345
+
 /bgp-acl-agent acl-sequence-start 1000
 commit stay
 ```
@@ -32,8 +38,6 @@ commit stay
 ```
 enter candidate
 /network-instance default protocols bgp
-router-id 1.2.3.4
-autonomous-system 12345
 group test
 exit
 neighbor 1.2.3.4
