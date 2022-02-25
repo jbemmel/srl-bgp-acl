@@ -1,0 +1,11 @@
+name: test-rpm
+
+topology:
+  kinds:
+    srl:
+      image: ghcr.io/nokia/srlinux:latest
+      binds:
+      - ./bgp-acl-agent-1.0.0.x86_64.rpm:/bgp-acl-agent-1.0.0.x86_64.rpm:ro
+
+  nodes:
+    n: { kind: srl }

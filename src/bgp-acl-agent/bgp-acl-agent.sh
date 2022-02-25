@@ -25,12 +25,12 @@ function main()
     source "${virtual_env}"
 
     # Include local paths where custom packages are installed
-    # P1="/usr/local/lib/python3.6/site-packages"
+    VENV_LIB="/opt/demo-agents/bgp-acl-agent/.venv/lib/python3.6/site-packages"
     # P2="/usr/local/lib64/python3.6/site-packages"
-    NDK="/opt/rh/rh-python36/root/usr/lib/python3.6/site-packages/sdk_protos"
+    # NDK="/opt/rh/rh-python36/root/usr/lib/python3.6/site-packages/sdk_protos"
     # since 21.6
-    SDK2="/usr/lib/python3.6/site-packages/sdk_protos"
-    export PYTHONPATH="$NDK:$SDK2:$PYTHONPATH"
+    NDK="/usr/lib/python3.6/site-packages/sdk_protos"
+    export PYTHONPATH="$NDK:$VENV_LIB:$PYTHONPATH"
 
     # [[ ! -f /var/run/netns/srbase-mgmt ]] && sleep 10
     # /usr/sbin/ip netns exec srbase-mgmt python3 ${main_module} &
