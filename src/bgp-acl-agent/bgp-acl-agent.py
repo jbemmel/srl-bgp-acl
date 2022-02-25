@@ -12,7 +12,8 @@ import json
 import signal
 import traceback
 import re
-from concurrent.futures import ThreadPoolExecutor
+# from concurrent.futures import ThreadPoolExecutor
+from threading import Thread
 
 import sdk_service_pb2
 import sdk_service_pb2_grpc
@@ -102,6 +103,7 @@ def Handle_Notification(obj):
     return False
 
 def Gnmi_subscribe_bgp_changes():
+    logging.info( "Gnmi_subscribe_bgp_changes -> start subscription to BGP neighbor events" )
     subscribe = {
             'subscription': [
                 {
@@ -137,6 +139,7 @@ def Gnmi_subscribe_bgp_changes():
                             username="admin",password="admin",
                             insecure=True, debug=False) as c:
       telemetry_stream = c.subscribe(subscribe=subscribe)
+      logging.info( "Unix socket connected...waiting for subscribed gNMI events" )
       for m in telemetry_stream:
         try:
           if m.HasField('update'): # both update and delete events
@@ -329,8 +332,9 @@ def Run():
     stream_response = sub_stub.NotificationStream(stream_request, metadata=metadata)
 
     # Gnmi_subscribe_bgp_changes()
-    executor = ThreadPoolExecutor(max_workers=1)
-    executor.submit(Gnmi_subscribe_bgp_changes)
+    # executor = ThreadPoolExecutor(max_workers=1)
+    # executor.submit(Gnmi_subscribe_bgp_changes)
+    Thread( target=Gnmi_subscribe_bgp_changes ).start()
 
     try:
         for r in stream_response:
@@ -374,7 +378,7 @@ if __name__ == '__main__':
     log_filename = f'{stdout_dir}/{agent_name}.log'
     logging.basicConfig(
       handlers=[RotatingFileHandler(log_filename, maxBytes=3000000,backupCount=5)],
-      format='%(asctime)s,%(msecs)03d %(name)s %(levelname)s %(message)s',
+      format='%(asctime)s,%(msecs)03d %(threadName)s %(levelname)s %(message)s',
       datefmt='%H:%M:%S', level=logging.INFO)
     logging.info("START TIME :: {}".format(datetime.now()))
     Run()
