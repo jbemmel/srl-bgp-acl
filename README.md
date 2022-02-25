@@ -99,6 +99,10 @@ To install the .rpm in a bash shell on a node:
 ```
 yum localinstall bgp-acl-agent-1.0.0.x86_64.rpm
 ```
+Or, for nodes without Internet access:
+```
+rpm -ivh bgp-acl-agent-1.0.0.x86_64.rpm
+```
 
 ## Implementation notes
 The code registers with the SR Linux NDK to allow for (simple) configuration of the base sequence number of dynamically created ACL entries.
