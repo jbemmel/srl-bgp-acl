@@ -20,7 +20,13 @@ sudo containerlab deploy -t ./srl-node.lab
 ssh admin@clab-bgp-acl-lab-spine1
 ```
 
-2. Copy & paste following CLI snippet (or part of it)
+2. Enable the agent (requires Unix gNMI socket)
+```
+/system gnmi-server unix-socket admin-state enable
+/bgp-acl-agent acl-sequence-start 1000
+```
+
+3. Copy & paste following CLI snippet (or part of it)
 ```
 enter candidate
 /network-instance default protocols bgp
