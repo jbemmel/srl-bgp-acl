@@ -20,10 +20,20 @@ sudo containerlab deploy -t ./srl-node.lab
 ssh admin@clab-bgp-acl-lab-spine1
 ```
 
-2. Copy & paste following CLI snippet (or part of it)
+2. Enable the agent (requires Unix gNMI socket)
+```
+enter candidate
+/system gnmi-server unix-socket admin-state enable
+/bgp-acl-agent acl-sequence-start 1000
+commit stay
+```
+
+3. Copy & paste following CLI snippet (or part of it)
 ```
 enter candidate
 /network-instance default protocols bgp
+router-id 1.2.3.4
+autonomous-system 12345
 group test
 exit
 neighbor 1.2.3.4
@@ -98,6 +108,10 @@ make rpm
 To install the .rpm in a bash shell on a node:
 ```
 yum localinstall bgp-acl-agent-1.0.0.x86_64.rpm
+```
+Or, for nodes without Internet access:
+```
+rpm -ivh bgp-acl-agent-1.0.0.x86_64.rpm
 ```
 
 ## Implementation notes
