@@ -44,6 +44,8 @@ Add 2 neighbors, delete both in the same commit:
 ```
 enter candidate
 /network-instance default protocols bgp
+router-id 1.2.3.4
+autonomous-system 12345
 group test
 exit
 neighbor 1.2.3.4
