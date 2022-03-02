@@ -3,11 +3,11 @@ bgp_acl_agent:
    path: /opt/demo-agents/bgp-acl-agent
    launch-command: /opt/demo-agents/bgp-acl-agent/bgp-acl-agent.sh
    search-command: python3 /opt/demo-agents/bgp-acl-agent/bgp-acl-agent.py
-   wait-for-config: No # no need to wait
+   wait-for-config: Yes # no need to wait, but then it doesn't read seq number
    failure-threshold: 100
    failure-action: wait=forever
    author: 'Nokia'
-   version-command: ' cat build_version'
+   version-command: ' echo "1.0"'
    yang-modules:
        names:
        - "bgp-acl-agent"
