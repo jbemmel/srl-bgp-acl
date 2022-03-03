@@ -92,7 +92,8 @@ def Handle_Notification(obj):
                 json_acceptable_string = obj.config.data.json.replace("'", "\"")
                 data = json.loads(json_acceptable_string)
                 if 'acl_sequence_start' in data:
-                    acl_sequence_start = data['acl_sequence_start']['value']
+                    global acl_sequence_start
+                    acl_sequence_start = int( data['acl_sequence_start']['value'] )
                     logging.info(f"Got init sequence :: {acl_sequence_start}")
 
                 return 'acl_sequence_start' in data
@@ -131,8 +132,8 @@ def Gnmi_subscribe_bgp_changes():
             'mode': 'stream',
             'encoding': 'json'
         }
-    _bgp = re.compile( r'^network-instance\[name=([^]]*)\]/protocols/bgp/neighbor\[peer-address=([^]]*)\]/admin-state$' )
-    _dyn = re.compile( r'^network-instance\[name=([^]]*)\]/protocols/bgp/dynamic-neighbors/accept/match\[prefix=([^]]*)\]/peer-group$' )
+    _bgp = re.compile( r'^network-instance\[name=([^]]*)\]/protocols/bgp/neighbor\[peer-address=([^]]*)\]/.*$' )
+    _dyn = re.compile( r'^network-instance\[name=([^]]*)\]/protocols/bgp/dynamic-neighbors/accept/match\[prefix=([^]]*)\]/.*$' )
 
     # with Namespace('/var/run/netns/srbase-mgmt', 'net'):
     with gNMIclient(target=('unix:///opt/srlinux/var/run/sr_gnmi_server',57400),
@@ -277,6 +278,7 @@ def Find_ACL_entry(gnmi,ip_prefix):
    acl_entries = gnmi.get( encoding='json_ietf', path=[path] )
    logging.info(f"Find_ACL_entry({ip_prefix}): GOT GET response :: {acl_entries}")
    searched = ip + '/' + prefix
+   global acl_sequence_start
    next_seq = acl_sequence_start
    for e in acl_entries['notification']:
      try:
