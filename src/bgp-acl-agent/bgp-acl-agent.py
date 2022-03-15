@@ -43,7 +43,6 @@ channel = grpc.insecure_channel('unix:///opt/srlinux/var/run/sr_sdk_service_mana
 metadata = [('agent_name', agent_name)]
 stub = sdk_service_pb2_grpc.SdkMgrServiceStub(channel)
 
-match_ip = { 0: 'source-ip', 1: 'destination-ip' }
 match_port = { 0: 'source-port', 1: 'destination-port' }
 
 ############################################################
@@ -232,7 +231,7 @@ def Add_ACL(gnmi,ip_prefix,net_inst,peer_type):
            "description": f"BGP ({peer_type}) peer in network-instance {net_inst}",
            "match": {
              ("protocol" if v==4 else "next-header"): "tcp",
-             match_ip[i]: { "prefix": ip + '/' + prefix },
+             "source-ip": { "prefix": ip + '/' + prefix },
              match_port[i] : { "operator": "eq", "value": 179 }
            },
            "action": { "accept": { } },
@@ -296,8 +295,8 @@ def Find_ACL_entry(gnmi,ip_prefix):
                match = j['match']
                # Users could change acl_sequence_start
                for i in range(0,2):
-                if match_ip[i] in match: # and j['sequence-id'] >= acl_sequence_start:
-                  src_ip = match[ match_ip[i] ]
+                if "source-ip" in match: # and j['sequence-id'] >= acl_sequence_start:
+                  src_ip = match[ "source-ip" ]
                   if 'prefix' in src_ip:
                      if (src_ip['prefix'] == searched):
                        logging.info(f"Find_ACL_entry: Found matching entry :: {j}")
@@ -313,7 +312,7 @@ def Find_ACL_entry(gnmi,ip_prefix):
                        logging.info( f"Increment next_seq (={next_seq})" )
                        next_seq += 1
                 else:
-                  logging.info( f"No {match_ip[i]} in entry" )
+                  logging.info( "No 'source-ip' in entry" )
      except Exception as e:
         logging.error(f'Exception caught in Find_ACL_entry :: {e}')
    logging.info(f"Find_ACL_entry: no match for searched={searched} next_seq={next_seq}")
