@@ -43,6 +43,9 @@ channel = grpc.insecure_channel('unix:///opt/srlinux/var/run/sr_sdk_service_mana
 metadata = [('agent_name', agent_name)]
 stub = sdk_service_pb2_grpc.SdkMgrServiceStub(channel)
 
+match_ip = { 0: 'source-ip', 1: 'destination-ip' }
+match_port = { 0: 'source-port', 1: 'destination-port' }
+
 ############################################################
 ## Subscribe to required event
 ## This proc handles subscription of: Interface, LLDP,
@@ -188,7 +191,7 @@ def handleDelete(gnmi,m):
              if n=="peer-address":
                 peer_ip = v
                 Remove_ACL(gnmi,peer_ip)
-                return # XXX could be multiple peers deleted in 1 go?
+                # return # Can be multiple entries
 
 #
 # Checks if this is an IPv4 or IPv6 address, and normalizes host prefixes
@@ -222,19 +225,22 @@ def Update_ACL_Counter(delta):
 def Add_ACL(gnmi,ip_prefix,net_inst,peer_type):
     seq, next_seq, v, ip, prefix = Find_ACL_entry(gnmi,ip_prefix) # Also returns next available entry
     if seq is None:
-        acl_entry = {
-          "created-by-bgp-acl-agent": datetime.now().strftime("%Y-%m-%d %H:%M:%S UTC"),
-          "description": f"BGP ({peer_type}) peer in network-instance {net_inst}",
-          "match": {
-            ("protocol" if v==4 else "next-header"): "tcp",
-            "source-ip": { "prefix": ip + '/' + prefix },
-            "destination-port": { "operator": "eq", "value": 179 }
-          },
-          "action": { "accept": { } },
-        }
-        path = f'/acl/cpm-filter/ipv{v}-filter/entry[sequence-id={next_seq}]'
-        logging.info(f"Update: {path}={acl_entry}")
-        gnmi.set( encoding='json_ietf', update=[(path,acl_entry)] )
+        updates = []
+        for i in range(0,2):
+          acl_entry = {
+           "created-by-bgp-acl-agent": datetime.now().strftime("%Y-%m-%d %H:%M:%S UTC"),
+           "description": f"BGP ({peer_type}) peer in network-instance {net_inst}",
+           "match": {
+             ("protocol" if v==4 else "next-header"): "tcp",
+             match_ip[i]: { "prefix": ip + '/' + prefix },
+             match_port[i] : { "operator": "eq", "value": 179 }
+           },
+           "action": { "accept": { } },
+          }
+          path = f'/acl/cpm-filter/ipv{v}-filter/entry[sequence-id={next_seq+i}]'
+          logging.info(f"Update: {path}={acl_entry}")
+          updates.append( (path,acl_entry) )
+        gnmi.set( encoding='json_ietf', update=updates )
 
         # Need to set state separately, not via gNMI. Uses underscores in path
         # Tried extending ACL entries, but system won't accept these updates
@@ -242,7 +248,7 @@ def Add_ACL(gnmi,ip_prefix,net_inst,peer_type):
         #            '{.sequence_id==' + str(next_seq) + '}.bgp_acl_agent_state')
         # js_path = '.bgp_acl_agent.entry{.ip=="'+peer_ip+'"}'
         # Add_Telemetry( js_path, { "sequence_id": next_seq } )
-        Update_ACL_Counter( +1 )
+        Update_ACL_Counter( +2 )
 
 def Remove_ACL(gnmi,peer_ip):
    seq, next_seq, v, ip, prefix = Find_ACL_entry(gnmi,[peer_ip])
@@ -289,15 +295,17 @@ def Find_ACL_entry(gnmi,ip_prefix):
                logging.info(f"Check ACL entry :: {j}")
                match = j['match']
                # Users could change acl_sequence_start
-               if 'source-ip' in match: # and j['sequence-id'] >= acl_sequence_start:
-                  src_ip = match['source-ip']
+               for i in range(0,2):
+                if match_ip[i] in match: # and j['sequence-id'] >= acl_sequence_start:
+                  src_ip = match[ match_ip[i] ]
                   if 'prefix' in src_ip:
                      if (src_ip['prefix'] == searched):
                        logging.info(f"Find_ACL_entry: Found matching entry :: {j}")
                        # Perform extra sanity check
-                       if ('destination-port' in match
-                            and 'value' in match['destination-port']
-                            and match['destination-port']['value'] == 179):
+                       key_name = match_port[i]
+                       if (key_name in match
+                            and 'value' in match[key_name]
+                            and match[key_name]['value'] == 179):
                            return (j['sequence-id'],None,v,ip,prefix)
                        else:
                            logging.info( "Source IP match but not BGP port" )
