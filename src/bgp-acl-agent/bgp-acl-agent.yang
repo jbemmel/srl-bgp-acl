@@ -87,7 +87,7 @@ module bgp-acl-agent {
         description "Timestamp added by BGP ACL agent to mark this entry";
         type string; // no point to make this srl_nokia-comm:date-and-time-delta;
 
-        must "(../match/protocol = 'tcp' or ../match/next-header = 'tcp') and ../match/destination-port/value = 179" {
+        must "(../match/protocol = 'tcp' or ../match/next-header = 'tcp') and (../match/destination-port/value = 179 or ../match/source-port/value = 179)" {
           error-message "The BGP ACL agent only manages TCP entries for port 179";
         }
      }
