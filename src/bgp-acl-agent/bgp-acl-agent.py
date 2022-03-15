@@ -282,7 +282,7 @@ def Find_ACL_entry(gnmi,ip_prefix):
    # Interestingly, datatype='config' is required to see custom config state
    # The default datatype='all' does not show it
    acl_entries = gnmi.get( encoding='json_ietf', path=[path] )
-   logging.info(f"Find_ACL_entry({ip_prefix}): GOT GET response :: {acl_entries}")
+   logging.info(f"Find_ACL_entry({ip_prefix}): GOT gNMI GET response")
    searched = ip + '/' + prefix
    global acl_sequence_start
    next_seq = acl_sequence_start
@@ -308,12 +308,12 @@ def Find_ACL_entry(gnmi,ip_prefix):
                             and match[key_name]['value'] == 179):
                            return (j['sequence-id'],None,v,ip,prefix)
                        else:
-                           logging.info( "Source IP match but not BGP port" )
+                           logging.info( "Source/Dest IP match but not BGP port" )
                      if j['sequence-id']==next_seq:
                        logging.info( f"Increment next_seq (={next_seq})" )
                        next_seq += 1
-               else:
-                  logging.info( "No source-ip in entry" )
+                else:
+                  logging.info( f"No {match_ip[i]} in entry" )
      except Exception as e:
         logging.error(f'Exception caught in Find_ACL_entry :: {e}')
    logging.info(f"Find_ACL_entry: no match for searched={searched} next_seq={next_seq}")
