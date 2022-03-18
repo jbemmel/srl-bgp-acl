@@ -7,15 +7,16 @@ bgp_acl_agent:
    failure-threshold: 100
    failure-action: wait=forever
    author: 'Nokia'
-   version-command: ' echo "1.0.3"'
+   version-command: ' echo "1.0.4"'
    yang-modules:
     names:
     - "bgp-acl-agent"
     source-directories:
     - "/opt/demo-agents/bgp-acl-agent/"
     - "/opt/srlinux/models/srl_nokia/models/common/"
-    - "/opt/srlinux/models/srl_nokia/models/interfaces/"
-    - "/opt/srlinux/models/srl_nokia/models/acl/"
     - "/opt/srlinux/models/srl_nokia/models/qos/"
+    - "/opt/srlinux/models/srl_nokia/models/acl/"
     - "/opt/srlinux/models/srl_nokia/models/routing-policy/"
+    - "/opt/srlinux/models/srl_nokia/models/system/"
     - "/opt/srlinux/models/srl_nokia/models/network-instance/"
+    - "/opt/srlinux/models/srl_nokia/models/interfaces/"

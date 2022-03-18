@@ -15,6 +15,9 @@ module bgp-acl-agent {
     import srl_nokia-common {
       prefix srl_nokia-comm;
     }
+    import srl_nokia-network-instance {
+        prefix srl_nokia-netinst;
+    }
     import srl_nokia-bgp {
         prefix srl_nokia-bgp;
     }
