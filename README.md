@@ -30,7 +30,7 @@ enter candidate
 router-id 1.2.3.4
 autonomous-system 12345
 
-/bgp-acl-agent acl-sequence-start 1000
+bgp-acl-agent acl-sequence-start 1000
 commit stay
 ```
 
