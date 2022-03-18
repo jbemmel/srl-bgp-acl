@@ -7,7 +7,7 @@ topology:
       extras:
          srl-agents: [ ./bgp-acl-agent.yml ]
       binds:
-      - ./bgp-acl-agent-1.0.2.x86_64.rpm:/bgp-acl-agent-1.0.2.x86_64.rpm:ro
+      - ./bgp-acl-agent-1.0.3.x86_64.rpm:/bgp-acl-agent-1.0.3.x86_64.rpm:ro
 
   nodes:
     spine1: { kind: srl, startup-config: spine1.cfg }

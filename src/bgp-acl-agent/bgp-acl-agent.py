@@ -81,7 +81,7 @@ def Subscribe_Notifications(stream_id):
 def Handle_Notification(obj):
     if obj.HasField('config'):
         logging.info(f"GOT CONFIG :: {obj.config.key.js_path}")
-        if obj.config.key.js_path == ".bgp_acl_agent":
+        if ".bgp_acl_agent" in obj.config.key.js_path:
             logging.info(f"Got config for agent, now will handle it :: \n{obj.config}\
                             Operation :: {obj.config.op}\nData :: {obj.config.data.json}")
             if obj.config.op == 2:

@@ -15,6 +15,9 @@ module bgp-acl-agent {
     import srl_nokia-common {
       prefix srl_nokia-comm;
     }
+    import srl_nokia-bgp {
+        prefix srl_nokia-bgp;
+    }
 
     // organization "Nokia";
 
@@ -77,7 +80,11 @@ module bgp-acl-agent {
     }
 
     // data definition statements
-    uses bgp-acl-agent-top;
+    // uses bgp-acl-agent-top;
+    // Depends on 'bgp' tree being present in the config
+    augment "/srl_nokia-netinst:network-instance/srl_nokia-netinst:protocols/srl_nokia-bgp:bgp" {
+        uses bgp-acl-agent-top;
+    }
 
     // Add a flag to ACL entries such that we can easily track the ones we added
     grouping custom-agent-config {
