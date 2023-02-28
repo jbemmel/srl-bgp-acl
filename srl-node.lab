@@ -8,6 +8,7 @@ topology:
          srl-agents: [ ./bgp-acl-agent.yml ]
       binds:
       - ./bgp-acl-agent-1.0.3.x86_64.rpm:/bgp-acl-agent-1.0.3.x86_64.rpm:ro
+      - eh_bgp_acl.py:/etc/opt/srlinux/eventmgr/eh_bgp_acl.py
 
   nodes:
     spine1: { kind: srl, startup-config: spine1.cfg }
