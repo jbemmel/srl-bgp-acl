@@ -15,7 +15,7 @@ sudo containerlab deploy -t ./srl-node.lab
 ```
 
 # Test
-1. Login to CLI (password: admin)
+1. Login to CLI (password: NokiaSrl1!)
 ```
 ssh admin@clab-bgp-acl-lab-spine1
 ```
@@ -80,7 +80,7 @@ commit now
 
 For IPv6:
 ```
-enter candidate 
+enter candidate
 /network-instance default protocols bgp
 neighbor 2001::1.2.3.4
 peer-group test
@@ -130,4 +130,3 @@ It is assumed a 'drop all' entry exists at sequence number 65535
 
 ## Open issues
 * There is a (configurable) connection rate limit on the gNMI interface; a large configuration with many existing BGP peers may exceed it during startup with the current approach of opening a new connection for each request
-
